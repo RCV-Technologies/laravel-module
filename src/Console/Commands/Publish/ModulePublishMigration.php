@@ -15,7 +15,7 @@ class ModulePublishMigration extends Command
     {
         $module = $this->argument('module');
 
-        $moduleMigrationPath = base_path("modules/{$module}/src/database/migrations");
+        $moduleMigrationPath = base_path("Modules/{$module}/src/database/migrations");
         $appMigrationPath = database_path('migrations');
 
         if (!File::exists($moduleMigrationPath)) {

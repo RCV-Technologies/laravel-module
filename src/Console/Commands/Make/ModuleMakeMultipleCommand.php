@@ -52,7 +52,7 @@ class ModuleMakeMultipleCommand extends Command
 
     protected function addToMarketplace(string $moduleName): void
     {
-        $marketplaceFile = base_path('modules/Core/marketplace.json');
+        $marketplaceFile = base_path('Modules/Core/marketplace.json');
         $marketplace = File::exists($marketplaceFile)
             ? json_decode(File::get($marketplaceFile), true)
             : ['modules' => []];
@@ -68,7 +68,7 @@ class ModuleMakeMultipleCommand extends Command
 
     protected function updateModuleStatus(string $moduleLower, bool $enabled): void
     {
-        $filePath = base_path("modules/{$moduleLower}/module.json");
+        $filePath = base_path("Modules/{$moduleLower}/module.json");
 
         if (!File::exists($filePath)) {
             $this->error(" module.json not found for [$moduleLower].");

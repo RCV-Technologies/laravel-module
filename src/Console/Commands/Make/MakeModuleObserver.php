@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -26,7 +26,7 @@ class MakeModuleObserver extends Command
 
         if (File::exists($filePath)) {
             $this->error("Observer already exists: {$filePath}");
-            return;
+            return 1;
         }
 
          $stubPath = __DIR__ . '/../stubs/observer.stub';
@@ -46,5 +46,6 @@ class MakeModuleObserver extends Command
 
         File::put($filePath, $content);
         $this->info("Observer created: {$filePath}");
+        return 0;
     }
 }

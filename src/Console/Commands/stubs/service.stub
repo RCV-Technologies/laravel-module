@@ -3,6 +3,7 @@
 namespace Modules\{{ module_name }}\Services;
 
 use Rcv\Core\Services\BaseService as CoreBaseService;
+use Modules\{{ module_name }}\Repositories\{{ class_name }}Repository;
 
  
 class {{ class_name }}Service extends CoreBaseService

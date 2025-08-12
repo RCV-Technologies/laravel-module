@@ -29,40 +29,53 @@ class ModuleModelMakeCommand extends Command
      */
     public function handle()
     {
-        $name = $this->argument('name');
+        $rawName = str_replace('\\', '/', $this->argument('name'));
         $module = $this->argument('module');
+        $className = Str::studly(basename($rawName));
+        $subPath = trim(dirname($rawName), '.');
 
         // Ensure module exists
-        if (!File::exists(base_path("modules/{$module}"))) {
+        if (!File::exists(base_path("Modules/{$module}"))) {
             $this->error("Module [{$module}] does not exist.");
             return 1;
         }
 
         // Create model directory if it doesn't exist
-        $modelPath = base_path("modules/{$module}/src/Models");
+        $modelPath = base_path("Modules/{$module}/src/Models" . ($subPath !== '' ? "/{$subPath}" : ''));
         if (!File::exists($modelPath)) {
             File::makeDirectory($modelPath, 0755, true);
         }
 
         // Generate model file
-        $modelFile = "{$modelPath}/{$name}.php";
+        $modelFile = "{$modelPath}/{$className}.php";
         $stub = File::get(__DIR__ . '/../stubs/model.stub');
 
         // Replace placeholders
         $content = str_replace(
             ['{{ module_name }}', '{{ class_name }}'],
-            [$module, $name],
+            [$module, $className],
             $stub
         );
 
+        // Adjust namespace for subdirectories (e.g., Models/Domain)
+        $namespaceSuffix = $subPath !== '' ? '\\' . str_replace('/', '\\', $subPath) : '';
+        $targetNamespace = "Modules\\{$module}\\Models{$namespaceSuffix}";
+        $content = preg_replace('/^namespace\s+[^;]+;$/m', 'namespace ' . addcslashes($targetNamespace, '\\') . ';', $content);
+
+        if (File::exists($modelFile)) {
+            $this->error("Model [{$className}] already exists.");
+            $this->info("Path: {$modelFile}");
+            return 1;
+        }
+
         // Create model file
         File::put($modelFile, $content);
-        $this->info("Model [{$name}] created successfully.");
+        $this->info("Model [{$className}] created successfully.");
         $this->info("Path: {$modelFile}");
 
         // Create migration if requested
         if ($this->option('migration')) {
-            $table = Str::snake(Str::pluralStudly($name));
+            $table = Str::snake(Str::pluralStudly($className));
             $this->call('module:make-migration', [
                 'name' => "create_{$table}_table",
                 'module' => $module
@@ -72,7 +85,7 @@ class ModuleModelMakeCommand extends Command
         // Create factory if requested
         if ($this->option('factory')) {
             $this->call('module:make-factory', [
-                'name' => "{$name}Factory",
+                'name' => "{$className}Factory",
                 'module' => $module
             ]);
         }
@@ -80,7 +93,7 @@ class ModuleModelMakeCommand extends Command
         // Create seeder if requested
         if ($this->option('seed')) {
             $this->call('module:make-seeder', [
-                'name' => "{$name}Seeder",
+                'name' => "{$className}Seeder",
                 'module' => $module
             ]);
         }

@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -17,7 +17,7 @@ class MakeModuleRequest extends Command
         $module = Str::studly($this->argument('module'));
 
         $namespace = "Modules\\{$module}\\Http\\Requests";
-        $path = base_path("modules/{$module}/src/Http/Requests");
+        $path = base_path("Modules/{$module}/src/Http/Requests");
 
         $filePath = "{$path}/{$name}.php";
 

@@ -61,7 +61,7 @@ class ModuleAutoloadCommand extends Command
      */
     public function handle()
     {
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
         $modules = File::directories($modulesPath);
         
         $composerJson = json_decode(File::get(base_path('composer.json')), true);
@@ -74,7 +74,7 @@ class ModuleAutoloadCommand extends Command
         
         // Add Core module back if not present
         if (!isset($autoload['Modules\\Core\\'])) {
-            $autoload['Modules\\Core\\'] = 'modules/Core/src/';
+            $autoload['Modules\\Core\\'] = 'Modules/Core/src/';
         }
         
         // Update composer.json

@@ -382,6 +382,15 @@ php artisan module:route-list {name}                     # List module routes
 ### 🛠️ Available Commands
 
 #### Module Management
+- `module:marketplace` - Manage modules via marketplace
+  - Usage: `php artisan module:marketplace {action} {module*} [--force]`
+  - Actions:
+    - `list` (no module args required) → Lists available/installed modules
+    - `install {module...}` → Installs/enables modules
+    - `remove {module...} [--force]` → Removes modules (use --force to bypass checks)
+    - `update {module...}` → Updates modules
+    - `cleanup` → Cleans orphaned module states
+
 - `module:make` - Create a new module
 - `module:enable` - Enable a module
 - `module:disable` - Disable a module

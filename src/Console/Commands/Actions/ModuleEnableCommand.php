@@ -21,7 +21,7 @@ class ModuleEnableCommand extends Command
             $this->info("Enabling module [{$name}]...");
 
             try {
-                $modulePath = base_path("modules/{$name}");
+                $modulePath = base_path("Modules/{$name}");
                 $isVendor = false;
 
                 if (!File::exists($modulePath)) {

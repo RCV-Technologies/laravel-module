@@ -17,7 +17,7 @@ class ModuleHealthCheck
     public function __construct(MarketplaceService $marketplaceService)
     {
         $this->marketplaceService = $marketplaceService;
-        $this->modulePath = base_path('modules');
+        $this->modulePath = base_path('Modules');
     }
 
     public function check()

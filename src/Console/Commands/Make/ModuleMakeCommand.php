@@ -40,7 +40,7 @@ class ModuleMakeCommand extends Command
         $this->moduleName = $name;
         $this->moduleNameStudly = Str::studly($name);
         $this->moduleNameLower = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
-        $this->modulePath = base_path("modules/{$this->moduleNameStudly}");
+        $this->modulePath = base_path("Modules/{$this->moduleNameStudly}");
     }
 
     protected function createModuleDirectories(): void
@@ -125,7 +125,7 @@ class ModuleMakeCommand extends Command
             return;
         }
 
-        $composer['autoload']['psr-4']["Modules\\{$this->moduleNameStudly}\\"] = "modules/{$this->moduleNameStudly}/src/";
+        $composer['autoload']['psr-4']["Modules\\{$this->moduleNameStudly}\\"] = "Modules/{$this->moduleNameStudly}/src/";
         File::put($composerPath, json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 

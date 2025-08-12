@@ -20,13 +20,13 @@ class ModuleEventProviderCommand extends Command
         $module = $this->argument('module');
 
         // Ensure module exists
-        if (!File::exists(base_path("modules/{$module}"))) {
+        if (!File::exists(base_path("Modules/{$module}"))) {
             $this->error("Module {$module} does not exist.");
             return 1;
         }
 
         // Create provider directory if it doesn't exist
-        $providerPath = base_path("modules/{$module}/src/Providers");
+        $providerPath = base_path("Modules/{$module}/src/Providers");
         if (!File::exists($providerPath)) {
             File::makeDirectory($providerPath, 0755, true);
         }

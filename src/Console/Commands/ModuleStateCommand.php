@@ -13,7 +13,7 @@ class ModuleStateCommand extends Command
     public function handle()
     {
         $name = $this->argument('name');
-        $modulePath = base_path('modules');
+        $modulePath = base_path('Modules');
 
         if ($name) {
             $state = ModuleState::where('name', $name)->first();

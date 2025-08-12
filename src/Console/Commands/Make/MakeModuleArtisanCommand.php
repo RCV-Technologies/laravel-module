@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -26,7 +26,7 @@ class MakeModuleArtisanCommand extends Command
 
         if (File::exists($filePath)) {
             $this->error("Command already exists: {$filePath}");
-            return;
+            return 1;
         }
 
                  $stubPath = __DIR__ . '/../stubs/console-command.stub';
@@ -48,5 +48,6 @@ class MakeModuleArtisanCommand extends Command
 
         File::put($filePath, $content);
         $this->info("Command created: {$filePath}");
+        return 0;
     }
 }

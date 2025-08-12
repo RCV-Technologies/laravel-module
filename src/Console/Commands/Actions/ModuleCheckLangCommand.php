@@ -24,7 +24,7 @@ class ModuleCheckLangCommand extends Command
     public function handle()
     {
         $module = $this->argument('module');
-        $basePath = base_path("modules/$module/Resources/lang");
+        $basePath = base_path("Modules/$module/Resources/lang");
         if (! $this->files->isDirectory($basePath)) {
             return $this->warn("No lang directory found in module $module.");
         }

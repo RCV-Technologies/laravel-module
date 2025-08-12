@@ -29,23 +29,31 @@ class ModuleServiceMakeCommand extends Command
      */
     public function handle()
     {
-        $serviceName = $this->argument('name');
+        $rawName = str_replace('\\', '/', $this->argument('name'));
         $module = $this->argument('module');
+        $serviceName = 
+            \Illuminate\Support\Str::studly(basename($rawName));
+        $subPath = trim(dirname($rawName), '.');
 
         // Ensure module exists
-        if (!File::exists(base_path("modules/{$module}"))) {
+        if (!File::exists(base_path("Modules/{$module}"))) {
             $this->error("Module {$module} does not exist.");
             return 1;
         }
 
         // Create service directory if it doesn't exist
-        $servicePath = base_path("modules/{$module}/src/Services");
+        $servicePath = base_path("Modules/{$module}/src/Services" . ($subPath !== '' ? "/{$subPath}" : ''));
         if (!File::exists($servicePath)) {
             File::makeDirectory($servicePath, 0755, true);
         }
 
         // Generate service file
         $serviceFile = "{$servicePath}/{$serviceName}Service.php";
+        if (File::exists($serviceFile)) {
+            $this->error("Service {$serviceName}Service already exists.");
+            $this->info("Path: {$serviceFile}");
+            return 1;
+        }
         $stub = File::get(__DIR__ . '/../stubs/service.stub');
 
         // Replace placeholders
@@ -54,6 +62,15 @@ class ModuleServiceMakeCommand extends Command
             [$module, $serviceName],
             $stub
         );
+
+        $namespaceSuffix = $subPath !== '' ? '\\' . str_replace('/', '\\', $subPath) : '';
+        $targetNamespace = "Modules\\{$module}\\Services{$namespaceSuffix}";
+        // Replace any namespace line
+        $content = preg_replace('/^namespace\s+[^;]+;$/m', "namespace {$targetNamespace};", $content);
+
+        // Fix repository import to include subPath
+        $repositoryImport = "Modules\\{$module}\\Repositories" . ($namespaceSuffix !== '' ? $namespaceSuffix : '') . "\\\\{$serviceName}Repository";
+        $content = preg_replace('/^use\s+Modules\\\\[^\\]+\\\\Repositories\\\\[^;]+;$/m', "use {$repositoryImport};", $content);
 
         // Create service file
         File::put($serviceFile, $content);

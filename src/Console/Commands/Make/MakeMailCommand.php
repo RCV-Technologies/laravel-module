@@ -29,7 +29,7 @@ class MakeMailCommand extends Command
     $name = Str::studly($this->argument('name'));
 
     // Updated path for your requirement
-    $mailPath = base_path("modules/{$module}/src/User/Mails");
+    $mailPath = base_path("Modules/{$module}/src/User/Mails");
 
     if (! $this->files->isDirectory($mailPath)) {
         $this->files->makeDirectory($mailPath, 0755, true);

@@ -117,7 +117,7 @@ class ModuleMigrationMakeCommand extends Command
     protected function getDestinationFilePath()
     {
         $module = $this->argument('module');
-        $path = base_path("modules/{$module}/src/Database/Migrations/");
+        $path = base_path("Modules/{$module}/src/Database/Migrations/");
         return $path . $this->getFileName() . '.php';
     }
 

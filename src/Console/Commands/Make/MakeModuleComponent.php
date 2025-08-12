@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -36,7 +36,7 @@ class MakeModuleComponent extends Command
 
         // View file directory and file
     // Correct view file directory inside src
-    $viewDir = $basePath . '/src/resources/views/components' . ($folderPath ? '/' . $folderPath : '');
+    $viewDir = $basePath . '/src/Resources/views/components' . ($folderPath ? '/' . $folderPath : '');
     $viewFile = $viewDir . '/' . \Illuminate\Support\Str::kebab($className) . '.blade.php';
 
 

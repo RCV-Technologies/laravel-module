@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -21,8 +21,8 @@ class MakeModuleClass extends Command
         $subPath = dirname($classPath) !== '.' ? dirname($classPath) : '';
         $namespace = "Modules\\{$module}" . ($subPath ? '\\' . str_replace('/', '\\', $subPath) : '');
 
-        $directory = base_path("Modules/{$module}/src/Class" . ($subPath ? '/' . $subPath : ''));
-        $fileName = basename($classPath) . '.php';
+        $directory = base_path("Modules/{$module}/src" . ($subPath ? '/' . $subPath : ''));
+        $fileName = $className . '.php';
         $filePath = "{$directory}/{$fileName}";
 
         if (!File::exists($directory)) {
@@ -31,7 +31,7 @@ class MakeModuleClass extends Command
 
         if (File::exists($filePath)) {
             $this->error("Class already exists: {$filePath}");
-            return;
+            return 1;
         }
 
         // Use stub located inside the same directory as this command
@@ -52,5 +52,6 @@ class MakeModuleClass extends Command
 
         File::put($filePath, $content);
         $this->info("Class created: {$filePath}");
+        return 0;
     }
 }
