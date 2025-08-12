@@ -86,5 +86,6 @@ return array (
     17 => 'Demo3',
     18 => 'Demo4',
     19 => 'Colleger',
+    20 => 'UserManagement',
   ),
 );

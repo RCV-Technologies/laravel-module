@@ -16,7 +16,7 @@ class MakeJobCommand extends Command
         $module = Str::studly($this->argument('module')); // Ensures proper casing
 
         $className = class_basename($name);
-        $namespace = "Modules\\$module\\src\\User\\Jobs";
+        $namespace = "Modules\\$module\\User\\Jobs";
 
         $path = base_path("Modules/{$module}/src/User/Jobs/{$className}.php");
 

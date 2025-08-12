@@ -35,11 +35,11 @@ class MarketplaceService
         ModuleRegistrationService $moduleRegistrationService
     )
     {
-        $this->localPath = Config::get('marketplace.local.path', base_path('modules'));
+        $this->localPath = Config::get('marketplace.local.path', base_path('Modules'));
         $this->cacheEnabled = Config::get('marketplace.cache.enabled', true);
         $this->cacheTtl = Config::get('marketplace.cache.ttl', 3600);
         $this->backupPath = Config::get('marketplace.modules.backup.path', storage_path('app/modules/backups'));
-        $this->modulePath = base_path('modules');
+        $this->modulePath = base_path('Modules');
         $this->config = config('marketplace');
         $this->cacheManager = $cacheManager;
         $this->moduleRegistrationService = $moduleRegistrationService;

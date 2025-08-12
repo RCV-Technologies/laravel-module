@@ -67,6 +67,6 @@ class ModuleMakeViewCommand extends Command
 
         $viewPath = str_replace('.', '/', $view) . '.blade.php';
 
-        return base_path("Modules/{$module}/src/resources/views/{$viewPath}");
+        return base_path("Modules/{$module}/src/Resources/views/{$viewPath}");
     }
 }

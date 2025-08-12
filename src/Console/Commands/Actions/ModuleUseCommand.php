@@ -15,7 +15,7 @@ class ModuleUseCommand extends Command
     public function handle()
     {
         $moduleName = $this->argument('module');
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
 
         if (!File::exists("{$modulesPath}/{$moduleName}")) {
             $this->error("Module '{$moduleName}' does not exist.");

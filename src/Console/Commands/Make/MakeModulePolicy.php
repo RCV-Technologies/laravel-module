@@ -1,6 +1,6 @@
 <?php
 
-namespace  Rcv\Core\Console\Commands\Make;
+namespace Rcv\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -26,7 +26,7 @@ class MakeModulePolicy extends Command
 
         if (File::exists($filePath)) {
             $this->error("Policy already exists: {$filePath}");
-            return;
+            return 1;
         }
 
          $stubPath = __DIR__ . '/../stubs/policy.stub';
@@ -46,5 +46,6 @@ class MakeModulePolicy extends Command
 
         File::put($filePath, $content);
         $this->info("Policy class created: {$filePath}");
+        return 0;
     }
 }

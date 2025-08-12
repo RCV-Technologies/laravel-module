@@ -25,20 +25,28 @@ class ModuleRepositoryMakeCommand extends Command
      */
    public function handle()
 {
-    $name = $this->argument('name');
+    $rawName = str_replace('\\', '/', $this->argument('name'));
     $module = $this->argument('module');
+    $className = \Illuminate\Support\Str::studly(basename($rawName));
+    $subPath = trim(dirname($rawName), '.');
 
-    if (!File::exists(base_path("modules/{$module}"))) {
+    if (!File::exists(base_path("Modules/{$module}"))) {
         $this->error("Module [{$module}] does not exist.");
         return 1;
     }
 
-    $repositoryPath = base_path("modules/{$module}/src/Repositories");
+    $repositoryPath = base_path("Modules/{$module}/src/Repositories" . ($subPath !== '' ? "/{$subPath}" : ''));
     if (!File::exists($repositoryPath)) {
         File::makeDirectory($repositoryPath, 0755, true);
     }
 
-    $repositoryFile = "{$repositoryPath}/{$name}Repository.php";
+    $repositoryFile = "{$repositoryPath}/{$className}Repository.php";
+
+    if (File::exists($repositoryFile)) {
+        $this->error("Repository [{$className}Repository] already exists.");
+        $this->info("Path: {$repositoryFile}");
+        return 1;
+    }
 
     $stubPath = __DIR__ . '/../stubs/repository.stub';
 
@@ -51,13 +59,17 @@ class ModuleRepositoryMakeCommand extends Command
 
     $content = str_replace(
         ['{{ module_name }}', '{{ class_name }}'],
-        [$module, str_replace('.php', '', $name)],
+        [$module, $className],
         $stub
     );
 
+    $namespaceSuffix = $subPath !== '' ? '\\' . str_replace('/', '\\', $subPath) : '';
+    $targetNamespace = "Modules\\{$module}\\Repositories{$namespaceSuffix}";
+    $content = preg_replace('/^namespace\s+Modules\\\\\{\{\s*module_name\s*\}\}\\\\Repositories;$/m', "namespace {$targetNamespace};", $content);
+
     File::put($repositoryFile, $content);
 
-    $this->info("Repository [{$name}] created successfully.");
+    $this->info("Repository [{$className}] created successfully.");
     $this->info("Path: {$repositoryFile}");
 
     return 0;

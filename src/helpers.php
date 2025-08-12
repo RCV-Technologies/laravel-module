@@ -10,7 +10,7 @@ if (!function_exists('module_path')) {
      */
     function module_path($module, $path = '')
     {
-        $modulePath = base_path('modules/' . $module);
+        $modulePath = base_path('Modules/' . $module);
         return $path ? $modulePath . '/' . ltrim($path, '/') : $modulePath;
     }
 }

@@ -16,7 +16,7 @@ class ModuleManager
     
     public function __construct()
     {
-        $this->modulePath = base_path('modules');
+        $this->modulePath = base_path('Modules');
         $this->initialize();
     }
     
@@ -74,7 +74,7 @@ class ModuleManager
     protected function scanAvailableModules(): array
     {
         $modules = [];
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
 
         if (File::exists($modulesPath)) {
             $directories = File::directories($modulesPath);
@@ -156,7 +156,7 @@ class ModuleManager
      */
     public function getModuleState(string $moduleName): array
     {
-        $moduleJsonPath = base_path("modules/{$moduleName}/module.json");
+        $moduleJsonPath = base_path("Modules/{$moduleName}/module.json");
         
         if (File::exists($moduleJsonPath)) {
             $config = json_decode(File::get($moduleJsonPath), true);
@@ -223,7 +223,7 @@ class ModuleManager
      */
     protected function updateModuleState(string $moduleName, array $state): void
     {
-        $moduleJsonPath = base_path("modules/{$moduleName}/module.json");
+        $moduleJsonPath = base_path("Modules/{$moduleName}/module.json");
         File::put($moduleJsonPath, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
     
@@ -235,7 +235,7 @@ class ModuleManager
      */
     protected function isValidModule(string $moduleName): bool
     {
-        $modulePath = base_path("modules/{$moduleName}");
+        $modulePath = base_path("Modules/{$moduleName}");
         $moduleJsonPath = "{$modulePath}/module.json";
         $providerPath = "{$modulePath}/src/Providers/{$moduleName}ServiceProvider.php";
 

@@ -35,7 +35,7 @@ class ModuleMigrateCommand extends Command
     {
         $this->info("Running migrations for all modules...");
 
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
 
         if (!File::exists($modulesPath)) {
             $this->warn("Modules directory not found: {$modulesPath}");
@@ -56,7 +56,7 @@ class ModuleMigrateCommand extends Command
     {
         $this->info("Migrating module [{$moduleName}]...");
 
-        $migrationPath = base_path("modules/{$moduleName}/src/Database/Migrations");
+        $migrationPath = base_path("Modules/{$moduleName}/src/Database/Migrations");
 
         if (!File::exists($migrationPath)) {
             $this->warn("No migration files found in [{$migrationPath}]");
@@ -84,7 +84,7 @@ class ModuleMigrateCommand extends Command
     {
         $this->info("Migrating single migration [{$migrationFileName}] in module [{$moduleName}]...");
 
-        $migrationPath = base_path("modules/{$moduleName}/src/Database/Migrations/{$migrationFileName}.php");
+        $migrationPath = base_path("Modules/{$moduleName}/src/Database/Migrations/{$migrationFileName}.php");
 
         if (!File::exists($migrationPath)) {
             $this->error("Migration file not found: {$migrationPath}");

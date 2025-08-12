@@ -100,7 +100,7 @@ class ModuleMarketplaceCommand extends Command
             $this->runComposerDumpAutoload();
 
             $this->info('Running migrations...');
-            $migrationsPath = base_path("modules/{$name}/src/Database/Migrations");
+            $migrationsPath = base_path("Modules/{$name}/src/Database/Migrations");
             if (File::exists($migrationsPath)) {
                 $migrationFiles = File::glob($migrationsPath . '/*.php');
                 foreach ($migrationFiles as $file) {
@@ -179,7 +179,7 @@ class ModuleMarketplaceCommand extends Command
                 $this->call('module:disable', ['module' => [$name], '--remove' => true]);
             }
 
-            $modulePath = base_path("modules/{$name}");
+            $modulePath = base_path("Modules/{$name}");
             if (File::exists($modulePath)) {
                 File::deleteDirectory($modulePath);
             }
@@ -227,7 +227,7 @@ class ModuleMarketplaceCommand extends Command
 
     protected function removeFromModulesConfig($name)
     {
-        $configPath = base_path('modules/Core/src/Config/modules.php');
+        $configPath = base_path('Modules/Core/src/Config/modules.php');
         if (File::exists($configPath)) {
             $config = require $configPath;
             if (isset($config['modules'])) {
@@ -263,7 +263,7 @@ class ModuleMarketplaceCommand extends Command
 
     protected function removeFromCoreConfig($name)
     {
-        $configPath = base_path('modules/Core/src/Config/config.php');
+        $configPath = base_path('Modules/Core/src/Config/config.php');
         if (File::exists($configPath)) {
             $config = require $configPath;
 
@@ -283,7 +283,7 @@ class ModuleMarketplaceCommand extends Command
         try {
             $this->info('Cleaning up orphaned module states...');
 
-            $modulePath = base_path('modules');
+            $modulePath = base_path('Modules');
             $states = ModuleState::all();
             $removedCount = 0;
 

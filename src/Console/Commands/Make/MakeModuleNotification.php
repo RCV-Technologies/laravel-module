@@ -16,7 +16,7 @@ class MakeModuleNotification extends Command
         $module = Str::studly($this->argument('module'));
         $name = Str::studly($this->argument('name'));
 
-        $moduleBasePath = base_path("modules/{$module}");
+        $moduleBasePath = base_path("Modules/{$module}");
 
         // Validate module existence
         if (!File::exists($moduleBasePath)) {

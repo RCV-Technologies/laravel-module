@@ -13,7 +13,7 @@ class ModuleMigrateResetCommand extends Command
 
     public function handle()
     {
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
         $modules = File::directories($modulesPath);
 
         foreach ($modules as $modulePath) {

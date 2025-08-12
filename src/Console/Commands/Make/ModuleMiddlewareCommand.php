@@ -21,7 +21,7 @@ class ModuleMiddlewareCommand extends Command
         $module = $this->argument('module');
 
         // Correct path to the middleware folder inside module
-        $middlewarePath = base_path("modules/{$module}/src/Http/Middleware");
+        $middlewarePath = base_path("Modules/{$module}/src/Http/Middleware");
         $filePath = "{$middlewarePath}/{$name}.php";
 
         if (!is_dir($middlewarePath)) {

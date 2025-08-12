@@ -14,7 +14,7 @@ class ListSeeders extends Command
     {
         $paths = [
             database_path('seeders'), 
-            base_path('modules'),    
+            base_path('Modules'),    
         ];
 
         $seeders = [];
@@ -26,7 +26,7 @@ class ListSeeders extends Command
         }
 
         // 2. Scan modules folder for seeders
-        $modulesPath = base_path('modules');
+        $modulesPath = base_path('Modules');
         if (File::exists($modulesPath)) {
             $moduleFolders = File::directories($modulesPath);
 

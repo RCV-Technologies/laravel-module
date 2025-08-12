@@ -13,7 +13,7 @@ class ModuleRegistrationService
     public function __construct()
     {
         $this->appConfigPath = config_path('app.php');
-        $this->modulePath = base_path('modules');
+        $this->modulePath = base_path('Modules');
     }
 
     /**
