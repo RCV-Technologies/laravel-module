@@ -87,7 +87,13 @@ class ModuleMakeCommand extends Command
             ['stub' => 'routes/web.stub', 'target' => "$srcBase/Routes/web.php"],
             ['stub' => 'routes/api.stub', 'target' => "$srcBase/Routes/api.php"],
             ['stub' => 'model.stub', 'target' => "$srcBase/Models/BaseModel.php", 'replace' => ['{{ class_name }}' => 'BaseModel']],
-            ['stub' => 'repository.stub', 'target' => "$srcBase/Repositories/BaseRepository.php", 'replace' => ['{{ class_name }}' => 'BaseRepository']],
+            ['stub' => 'repository.stub',
+                'target' => "$srcBase/Repositories/BaseRepository.php",
+                'replace' => [
+                    '{{ class_name }}' => 'BaseRepository',
+                    '{{ namespace }}' => "Modules\\{$this->moduleNameStudly}\\Repositories"
+                ]
+            ],
             ['stub' => 'service.stub', 'target' => "$srcBase/Services/BaseService.php", 'replace' => ['{{ class_name }}' => 'Base']],
             ['stub' => 'HomeController.stub', 'target' => "$srcBase/Http/Controllers/HomeController.php"],
             ['stub' => 'ApiHomeController.stub', 'target' => "$srcBase/Http/Controllers/Api/HomeController.php"],

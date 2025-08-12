@@ -325,10 +325,9 @@ php artisan module:list                           # List all modules with status
 php artisan module:show                           # Show detailed module information
 
 # 🗂️ Module Lifecycle
-php artisan module:install {name}                 # Install module dependencies
-php artisan module:remove {name}               # Uninstall module
-php artisan module:update {name}                  # Update module
-php artisan module:publish {name}                 # Publish module assets
+php artisan module:marketplace install {name}  # Install module dependencies
+php artisan module:marketplace remove {name}   # Uninstall module
+php artisan module:marketplace update {name}   # Update module
 ```
 
 ### 🏗️ Component Generation Commands
@@ -394,10 +393,6 @@ php artisan module:route-list {name}                     # List module routes
 - `module:make` - Create a new module
 - `module:enable` - Enable a module
 - `module:disable` - Disable a module
-- `module:list` - List all modules
-- `module:install` - Install a module
-- `module:remove` - Uninstall a module
-- `module:update` - Update a module
 - `module:state` - Check module state
 - `module:debug` - Debug module information
 - `module:dependency-graph` - Generate module dependency graph
@@ -801,7 +796,7 @@ We welcome contributions from the community! Here's how you can help:
 
 ```bash
 # 1. Fork the repository
-git clone https://github.com/Rishabh6688/core.git
+git clone https://github.com/RCV-Technologies/laravel-module.git
 
 # 2. Create a feature branch
 git checkout -b feature/amazing-feature
@@ -854,18 +849,6 @@ git push origin feature/amazing-feature
 - 📝 [**Blog Posts**](https://blog.rcvtechnologies.com) - Best practices and tips
 - 💬 [**Community Forum**](https://github.com/rcv-technologies/laravel-core/discussions) - Get help from experts
 
-### 🛠️ Example Projects
-
-```bash
-# Clone example projects
-git clone https://github.com/rcv-technologies/laravel-core-examples.git
-
-# Available examples:
-# 1. E-commerce Platform (15 modules)
-# 2. CMS System (10 modules)
-# 3. API Gateway (8 modules)
-# 4. Multi-tenant SaaS (20 modules)
-```
 
 ### 🎯 Best Practices Guide
 
@@ -1162,7 +1145,7 @@ Special thanks to all contributors and the Laravel community:
 
 | Contributor | Contributions | Impact |
 |-------------|---------------|--------|
-| [@rajatjha](https://github.com/johndoe) | 50+ commits | 🚀 Core architecture |
+| [@rajatjha](https://github.com/vatsrajatkjha) | 50+ commits | 🚀 Core architecture |
 | [@Sadik   ](https://github.com/janedoe) | 30+ commits | 📚 Documentation |
 | [@devexpert](https://github.com/devexpert) | 25+ commits | 🧪 Testing framework |
 | [@designguru](https://github.com/designguru) | 20+ commits | 🎨 UI/UX improvements |

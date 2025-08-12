@@ -3,8 +3,7 @@
 namespace Modules\{{ module_name }}\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
 
 class {{ module_name }}ServiceProvider extends ServiceProvider
 {
@@ -16,11 +15,25 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../Config/config.php', '{{ module_name_lower }}'
-        );
+        $this->registerModuleConfigs();
 
         $this->app->register({{ module_name }}EventServiceProvider::class);
+    }
+
+    /**
+     * Dynamically register all config files in the module's Config directory.
+     */
+    protected function registerModuleConfigs(): void
+    {
+        $configPath = __DIR__ . '/../Config';
+        if (File::isDirectory($configPath)) {
+            foreach (File::files($configPath) as $file) {
+                if ($file->getExtension() === 'php') {
+                    $key = $file->getBasename('.php');
+                    $this->mergeConfigFrom($file->getRealPath(), $key);
+                }
+            }
+        }
     }
 
     /**
@@ -28,7 +41,7 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->registerConfig();
+        $this->publishModuleConfigs();
         $this->registerCommands();
         $this->registerRoutes();
         $this->registerViews();
@@ -38,17 +51,20 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register config.
+     * Publish all config files in the module's Config directory.
      */
-    protected function registerConfig(): void
+    protected function publishModuleConfigs(): void
     {
-        $this->publishes([
-            __DIR__.'/../Config/config.php' => config_path('{{ module_name_lower }}.php'),
-        ], 'config');
-
-        $this->mergeConfigFrom(
-            __DIR__.'/../Config/config.php', '{{ module_name_lower }}'
-        );
+        $configPath = __DIR__ . '/../Config';
+        if (File::isDirectory($configPath)) {
+            $publish = [];
+            foreach (File::files($configPath) as $file) {
+                if ($file->getExtension() === 'php') {
+                    $publish[$file->getRealPath()] = config_path($file->getFilename());
+                }
+            }
+            $this->publishes($publish, 'config');
+        }
     }
 
     /**
@@ -80,7 +96,7 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
                 $this->loadRoutesFrom($apiRoutePath);
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error in {{ module_name }}ServiceProvider registerRoutes: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Error in {$this->moduleName}ServiceProvider registerRoutes: " . $e->getMessage());
             throw $e;
         }
     }
@@ -90,14 +106,14 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
      */
     protected function registerViews(): void
     {
-        $viewPath = resource_path('views/modules/{{ module_name_lower }}');
+        $viewPath = resource_path("views/modules/{$this->moduleNameLower}");
         $sourcePath = __DIR__.'/../Resources/views';
 
         $this->publishes([
             $sourcePath => $viewPath
-        ], ['views', '{{ module_name_lower }}-module-views']);
+        ], ['views', "{$this->moduleNameLower}-module-views"]);
 
-        $this->loadViewsFrom($sourcePath, '{{ module_name_lower }}');
+        $this->loadViewsFrom($sourcePath, $this->moduleNameLower);
     }
 
     /**
@@ -105,7 +121,7 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
      */
     protected function registerTranslations(): void
     {
-        $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', '{{ module_name_lower }}');
+        $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', $this->moduleNameLower);
     }
 
     /**
@@ -117,11 +133,10 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
     }
 
     /**
-    * Register compoenents
-    */
-
+     * Register components.
+     */
     protected function registerComponents(): void
     {
-       
+        // Add your Blade/Livewire components here if needed
     }
-} 
+}

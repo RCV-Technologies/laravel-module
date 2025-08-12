@@ -12,7 +12,7 @@ class ModuleMarketplaceCommand extends Command
 {
     protected $signature = 'module:marketplace 
         {action : The action to perform (list|install|remove|update|cleanup)} 
-        {module* : One or more module names} 
+        {module?* : One or more module names} 
         {--force : Force the action}';
 
     protected $description = 'Manage modules through the marketplace';
@@ -38,6 +38,10 @@ class ModuleMarketplaceCommand extends Command
             case 'remove':
                 return $this->removeModules($names, $force);
             case 'update':
+                if (empty($names)) {
+                    $this->error("You must specify at least one module to update.");
+                        return 1;
+                }
                 return $this->updateModules($names);
             case 'cleanup':
                 return $this->cleanup();

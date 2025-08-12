@@ -65,8 +65,9 @@ class ModuleControllerMakeCommand extends Command
 
         $this->createController($stub, $className, $module, $isResource, $isApi, $subPath);
 
-        $this->info("Controller [{$name}] created successfully.");
+        $this->info("Controller [{$className}] created successfully.");
         $this->info("Created in [{$controllerFile}]");
+
         return 0;
     }
 
@@ -117,13 +118,17 @@ class ModuleControllerMakeCommand extends Command
      */
     protected function createController($stub, $name, $module, $isResource, $isApi, $subPath = '')
     {
-        $stub = File::get(__DIR__ . '/../stubs/' . $stub);
-        $stub = str_replace('{{ module_name }}', $module, $stub);
-        $stub = str_replace('{{ class_name }}', $name, $stub);
+        $stubPath = __DIR__ . '/../stubs/' . $stub;
+        $stub = File::get($stubPath);
 
+        // Build namespace including subdirectory
         $namespaceSuffix = $subPath !== '' ? '\\' . str_replace('/', '\\', $subPath) : '';
         $namespace = "Modules\\{$module}\\Http\\Controllers{$namespaceSuffix}";
-        $stub = preg_replace('/^namespace\s+Modules\\\\\{\{\s*module_name\s*\}\}\\\\Http\\\\Controllers;$/m', "namespace {$namespace};", $stub);
+
+        // Replace placeholders
+        $stub = str_replace('{{ namespace }}', $namespace, $stub);
+        $stub = str_replace('{{ module_name }}', $module, $stub);
+        $stub = str_replace('{{ class_name }}', $name, $stub);
 
         if ($isResource) {
             $resourceName = Str::studly(Str::singular($name));
@@ -131,11 +136,10 @@ class ModuleControllerMakeCommand extends Command
             $stub = str_replace('{{ resource_name_lower }}', Str::camel($resourceName), $stub);
         }
 
+        // Save file
         $targetDir = base_path("Modules/{$module}/src/Http/Controllers" . ($subPath !== '' ? '/' . $subPath : ''));
         File::ensureDirectoryExists($targetDir, 0755, true);
-        File::put(
-            $targetDir . "/{$name}.php",
-            $stub
-        );
+        File::put($targetDir . "/{$name}.php", $stub);
     }
+
 } 
