@@ -114,7 +114,7 @@ graph TB
 composer require rcv/core
 
 # 🔧 Publish Migration
-php artisan vendor:publish --tag=core-module-migrations
+php artisan vendor:publish --tag=rcv-core-migrations
 
 # 🔧 Migrate Migration
 php artisan migrate
