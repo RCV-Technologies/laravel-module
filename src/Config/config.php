@@ -66,5 +66,17 @@ return array (
   ),
   'modules' => 
   array (
+    0 => 'Test',
+    1 => 'Configure',
+    2 => 'Setting',
+    3 => 'Harshit',
+    4 => 'UserManagement',
+    5 => 'UserManagement12',
+    6 => 'User',
+    7 => 'Rajat',
+    8 => 'Rajat123',
+    9 => 'NewOne',
+    10 => 'NewModule',
+    11 => 'Vishal',
   ),
 );

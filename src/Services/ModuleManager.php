@@ -138,6 +138,21 @@ class ModuleManager
      */
     public function isModuleEnabled(string $moduleName): bool
     {
+        // First check database for module state
+        try {
+            $dbState = \Illuminate\Support\Facades\DB::table('module_states')
+                ->where('name', $moduleName)
+                ->first();
+            
+            if ($dbState) {
+                return (bool)$dbState->enabled;
+            }
+        } catch (\Exception $e) {
+            // If database check fails, fall back to JSON
+            Log::debug("Database check failed for module {$moduleName}, falling back to JSON: " . $e->getMessage());
+        }
+        
+        // Fall back to JSON file check
         $moduleState = $this->getModuleState($moduleName);
         return $moduleState['enabled'] ?? false;
     }

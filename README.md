@@ -114,7 +114,7 @@ graph TB
 composer require rcv/core
 
 # 🔧 Publish Migration
-php artisan vendor:publish --tag=rcv-core-migrations
+php artisan vendor:publish --tag=core-module-migrations
 
 # 🔧 Migrate Migration
 php artisan migrate
@@ -441,8 +441,7 @@ php artisan module:make-job {name} {module}                     # Create job
 php artisan module:make-policy {name} {module}           # Create policy
 php artisan module:make-rule {name} {module}             # Create validation rule
 
-# 📦 Providers
-php artisan module:make-provider {name} {module}         # Create service provider
+
 ```
 
 ### 🛠️ Development & Maintenance Commands

@@ -32,12 +32,12 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishModuleConfigs();
-        $this->publishModuleConfigs();
         $this->registerCommands();
         $this->registerRoutes();
         $this->registerViews();
         $this->registerTranslations();
         $this->registerMigrations();
+         $this->registerMiddleware();
         $this->registerComponents();
     }
 
@@ -47,12 +47,15 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
     protected function registerModuleConfigs(): void
     {
         $configPath = __DIR__ . '/../Config';
-        if (File::isDirectory($configPath)) {
-            foreach (File::files($configPath) as $file) {
-                if ($file->getExtension() === 'php') {
-                    $key = $file->getBasename('.php');
-                    $this->mergeConfigFrom($file->getRealPath(), $key);
-                }
+        foreach (glob($configPath . '/*.php') as $file) {
+            $filename = basename($file, '.php');
+
+            if ($filename === 'config') {
+                // Merge main config file as 'client'
+                $this->mergeConfigFrom($file, $this->moduleNameLower);
+            } else {
+                // Merge others as 'client.filename'
+                $this->mergeConfigFrom($file, "$this->moduleNameLower::$filename");
             }
         }
     }
@@ -153,6 +156,19 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
         if (File::isDirectory($migrationPath)) {
             $this->loadMigrationsFrom($migrationPath);
         }
+    }
+
+    /**
+     * Register Middleware.
+     */
+
+    protected function registerMiddleware(): void
+    {
+        $router = $this->app['router'];
+
+      
+     //   $router->aliasMiddleware('{name}', Middleware::class);
+      
     }
 
     /**

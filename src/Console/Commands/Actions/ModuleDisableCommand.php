@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use RCV\Core\Services\ComposerDependencyManager;
 
 class ModuleDisableCommand extends Command
 {
@@ -33,6 +34,8 @@ class ModuleDisableCommand extends Command
         $rollback = $this->option('rollback');
         $dryRun = $this->option('dry-run');
         $noAutoload = $this->option('no-autoload');
+
+        $dependencyManager = new ComposerDependencyManager($this);
 
         $summary = [
             'processed' => [],
@@ -64,6 +67,19 @@ class ModuleDisableCommand extends Command
 
             // Check dependencies unless forced
             if (! $force) {
+                // Check if OTHER modules depend on this module (have this module in their "dependents" array)
+                $modulesUsingThis = $this->findModulesThatDependOnThis($name);
+                if (! empty($modulesUsingThis)) {
+                    $this->error("⚠️  Cannot disable [{$name}] because the following modules depend on it:");
+                    foreach ($modulesUsingThis as $usingModule) {
+                        $this->line("   - {$usingModule}");
+                    }
+                    $this->comment("Use --force to override and proceed anyway (may break dependent modules).");
+                    $summary['skipped'][] = $name;
+                    continue;
+                }
+
+                // Also check composer.json dependencies (existing logic)
                 $dependentModules = $this->findDependentModules($name);
                 if (! empty($dependentModules)) {
                     $this->error("Cannot disable [{$name}] because it is required by: " . implode(', ', $dependentModules));
@@ -130,6 +146,13 @@ class ModuleDisableCommand extends Command
                 DB::commit();
                 $summary['disabled'][] = $name;
                 $this->info("Module [{$name}] marked disabled.");
+                
+                // Remove module dependencies after successful disable
+                $this->info("Removing dependencies for module [{$name}]...");
+                if (!$dependencyManager->removeModuleDependencies($name)) {
+                    $this->warn("Failed to remove some dependencies for module [{$name}], but continuing...");
+                }
+                
                 // event AFTER successful disable
                 event(new \RCV\Core\Events\ModuleDisabled($name));
             } catch (\Throwable $e) {
@@ -176,6 +199,10 @@ class ModuleDisableCommand extends Command
             if ($exitCode !== 0) {
                 $this->warn('composer dump-autoload returned non-zero exit code.');
             }
+            
+            // Update autoload configuration for enabled modules
+            $this->info('Updating module autoload configuration...');
+            $this->call('module:autoload');
         } else {
             $this->comment('Skipping composer dump-autoload (--no-autoload or dry-run).');
         }
@@ -198,6 +225,39 @@ class ModuleDisableCommand extends Command
         $this->newLine();
 
         return empty($summary['errors']) ? 0 : 1;
+    }
+
+    /**
+     * Find modules that have the given module in their "dependents" array
+     * (i.e., modules that DEPEND ON the given module)
+     *
+     * @param string $name
+     * @return array
+     */
+    protected function findModulesThatDependOnThis(string $name): array
+    {
+        $modulesUsingThis = [];
+        $modules = File::directories(base_path('Modules'));
+
+        foreach ($modules as $path) {
+            $moduleJsonPath = "{$path}/module.json";
+            if (! File::exists($moduleJsonPath)) {
+                continue;
+            }
+
+            $data = json_decode(File::get($moduleJsonPath), true);
+            if (! is_array($data)) {
+                continue;
+            }
+
+            // Check if this module lists the target module in its dependents array
+            $dependents = $data['dependents'] ?? [];
+            if (in_array($name, $dependents)) {
+                $modulesUsingThis[] = basename($path);
+            }
+        }
+
+        return array_values(array_unique($modulesUsingThis));
     }
 
     /**
