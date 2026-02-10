@@ -37,6 +37,11 @@ _(nothing yet)_
 - Fixed namespace resolution issues for module models.
 - Corrected repository class name generation during scaffolding.
 
+## [1.0.2] - 2025-09-23
+
+### Fixed
+- MakeModuleCommand for taking Module Name at last as signature and registering component appropriately in the service provider
+
 ## [1.0.1] - 2025-09-23
 
 ### Added
@@ -90,7 +95,7 @@ _(nothing yet)_
   - `Service`
 ---
 
-## [1.0.1-alpha] - 2025-08-22
+## [1.0.0-beta.1] - 2025-08-22
 
 ### Fixed
 - Update README logo and clean up commented/unnecessary code
