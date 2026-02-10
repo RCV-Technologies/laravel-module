@@ -58,12 +58,28 @@ class ModuleMakeModelCommand extends Command
 
         // Generate model file
         $modelFile = "{$modelPath}/{$className}.php";
+
+        // Check if model already exists
+        if (File::exists($modelFile)) {
+            $this->error("Model [{$className}] already exists.");
+            $this->info("Path: {$modelFile}");
+            return 1;
+        }
+
         $stub = File::get(__DIR__ . '/../stubs/model.stub');
+
+        // Build namespace with subdirectories
+        $namespace = "Modules\\{$module}\\Models";
+        if ($subDir) {
+            $namespaceParts = explode('/', $subDir);
+            $namespaceParts = array_map(fn($part) => Str::studly($part), $namespaceParts);
+            $namespace .= '\\' . implode('\\', $namespaceParts);
+        }
 
         // Replace placeholders
         $content = str_replace(
-            ['{{ module_name }}', '{{ class_name }}'],
-            [$module, $className],
+            ['{{ namespace }}', '{{ class_name }}'],
+            [$namespace, $className],
             $stub
         );
 

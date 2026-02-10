@@ -86,7 +86,7 @@ class ModuleMakeCommand extends Command
             ['stub' => 'config.stub', 'target' => "$srcBase/Config/config.php"],
             ['stub' => 'routes/web.stub', 'target' => "$srcBase/Routes/web.php"],
             ['stub' => 'routes/api.stub', 'target' => "$srcBase/Routes/api.php"],
-            ['stub' => 'model.stub', 'target' => "$srcBase/Models/BaseModel.php", 'replace' => ['{{ class_name }}' => 'BaseModel']],
+            ['stub' => 'base-model.stub', 'target' => "$srcBase/Models/BaseModel.php", 'replace' => ['{{ class_name }}' => 'BaseModel']],
             ['stub' => 'repository.stub', 'target' => "$srcBase/Repositories/BaseRepository.php", 'replace' => ['{{ class_name }}' => 'BaseRepository']],
             ['stub' => 'service.stub', 'target' => "$srcBase/Services/BaseService.php", 'replace' => ['{{ class_name }}' => 'Base']],
             ['stub' => 'HomeController.stub', 'target' => "$srcBase/Http/Controllers/HomeController.php"],

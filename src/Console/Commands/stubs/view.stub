@@ -1,12 +1,10 @@
 {{-- View: {{ view_name }} --}}
 
-@extends('layouts.app')
 
-@section('content')
     <div class="container">
         <h1>{{ view_name }} - {{ module_name }} Module</h1>
         <p>This is the <strong>{{ view_name }}</strong></p>
         <p>for the <strong>{{ module_name }}</strong> module.</p>
     </div>
-@endsection
+
 

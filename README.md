@@ -114,7 +114,7 @@ graph TB
 composer require rcv/core
 
 # 🔧 Publish Migration
-php artisan vendor:publish --tag=rcv-core-migrations
+php artisan vendor:publish --tag=core-module-migrations
 
 # 🔧 Migrate Migration
 php artisan migrate
@@ -342,8 +342,9 @@ Laravel Core Module provides **20+ Artisan commands** for efficient development:
 php artisan module:make {name}                    # Create new module
 
 # 🔧 Module State Management
-php artisan module:enable {name}                  # Enable specific module
-php artisan module:disable {name}                 # Disable specific module
+php artisan module:enable {name}                  # Enable specific module (auto-enables dependents)
+php artisan module:disable {name}                 # Disable specific module (checks for dependents)
+php artisan module:sync                           # Sync module states and dependencies
 
 # 📋 Module Information
 php artisan module:marketplace list               # List all modules with status
@@ -441,8 +442,7 @@ php artisan module:make-job {name} {module}                     # Create job
 php artisan module:make-policy {name} {module}           # Create policy
 php artisan module:make-rule {name} {module}             # Create validation rule
 
-# 📦 Providers
-php artisan module:make-provider {name} {module}         # Create service provider
+
 ```
 
 ### 🛠️ Development & Maintenance Commands
@@ -524,6 +524,42 @@ php artisan module:profile --duration=5                  # Run a simple module p
 - `module:make-component` - Create a new component
 - `module:make-notification` - Create a new notification
 - `module:make-observer` - Create a new observer
+
+### 🔗 Module Dependencies & Dependents
+
+**Composer Dependencies** (`dependencies` array): Third-party packages required by the module.
+**Module Dependents** (`dependents` array): Internal modules that THIS module depends on.
+
+#### Example module.json:
+```json
+{
+    "name": "User",
+    "version": "1.0.0",
+    "enabled": true,
+    "dependencies": ["doctrine/dbal:*", "guzzlehttp/guzzle:^7.0"],
+    "dependents": ["Module1", "Module2"]
+}
+```
+
+**Behavior:**
+- **Enable**: Installs Composer packages and prompts to enable required modules (Module1,Module2)
+- **Disable**: Removes unused Composer packages and blocks if other modules depend on it
+- **Sync**: Ensures all dependencies and dependents are properly managed
+
+```bash
+# Enable module with dependencies
+php artisan module:enable User
+# Output: Installs doctrine/dbal, guzzlehttp/guzzle
+# Output: Prompts to enable Module1 and Module2 modules
+
+# Disable module (checks dependents)
+php artisan module:disable Module1
+# Output: Error if User depends on Module1 (use --force to override)
+
+# Sync with dependency management
+php artisan module:sync --json-priority
+# Output: Installs/removes dependencies for all modules
+```
 
 ### 🔤 Module Translation Check Command
 

@@ -63,6 +63,7 @@ use RCV\Core\Console\Commands\Actions\ModuleUnuseCommand;
 use RCV\Core\Console\Commands\DevOps\PublishDevopsAssets;
 use RCV\Core\Console\Commands\Make\ModuleMakeViewCommand;
 use RCV\Core\Console\Commands\Actions\ModuleEnableCommand;
+use RCV\Core\Console\Commands\Actions\ModuleSyncCommand;
 use RCV\Core\Console\Commands\Make\MakeModuleNotification;
 use RCV\Core\Console\Commands\Make\ModuleMakeEventCommand;
 use RCV\Core\Console\Commands\Make\ModuleMakeModelCommand;
@@ -117,6 +118,7 @@ class CoreServiceProvider extends ServiceProvider
         ModuleMarketplaceCommand::class,
         ModuleStateCommand::class,
         ModuleEnableCommand::class,
+        ModuleSyncCommand::class,
         ModuleDisableCommand::class,
         ModuleDebugCommand::class,
         ModuleCheckUpdatesCommand::class,
