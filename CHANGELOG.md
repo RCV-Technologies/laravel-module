@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(nothing yet)_
 
+## [1.4.0] - 2026-02-10
+
+### Added
+- **Composer Dependency Management**: Automatic installation and removal of third-party packages defined in module's `dependencies` array.
+- **Module Dependents Feature**: Support for internal module-to-module relationships via `dependents` array in `module.json`.
+- **Smart Dependency Removal**: Only removes packages when no other enabled modules require them.
+- **Enhanced module:enable**: Automatically enables required modules listed in `dependents` array with user confirmation.
+- **Enhanced module:disable**: Prevents disabling modules that other modules depend on (requires `--force` to override).
+- **Enhanced module:sync**: Handles both Composer dependencies and module dependents during synchronization.
+- **ComposerDependencyManager Service**: New service class for managing Composer package operations.
+
+### Changed
+- **module:enable** now checks for required modules and prompts to enable them automatically.
+- **module:disable** now validates if other modules depend on the target module before disabling.
+- **module:sync** now ensures dependencies are installed/removed even for already-synced modules.
+- Updated `module.json` schema to support both `dependencies` (Composer packages) and `dependents` (internal modules).
+
+### Fixed
+- Dependency installation now properly handles version constraints in format `package:version`.
+- Shared dependencies are no longer removed when one module is disabled if other modules still use them.
+
 ## [1.3.0] - 2025-09-17
 
 ### Added
