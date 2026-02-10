@@ -19,6 +19,9 @@ _(nothing yet)_
 - **Enhanced module:disable**: Prevents disabling modules that other modules depend on (requires `--force` to override).
 - **Enhanced module:sync**: Handles both Composer dependencies and module dependents during synchronization.
 - **ComposerDependencyManager Service**: New service class for managing Composer package operations.
+- Automatic configuration loading support for module config files.
+- Middleware registration support within the Module Service Provider.
+
 
 ### Changed
 - **module:enable** now checks for required modules and prompts to enable them automatically.
@@ -29,6 +32,10 @@ _(nothing yet)_
 ### Fixed
 - Dependency installation now properly handles version constraints in format `package:version`.
 - Shared dependencies are no longer removed when one module is disabled if other modules still use them.
+- Prevented removal of shared Composer dependencies when still used by other modules.
+- Resolved nested controller file generation issues.
+- Fixed namespace resolution issues for module models.
+- Corrected repository class name generation during scaffolding.
 
 ## [1.3.0] - 2025-09-17
 
