@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(nothing yet)_
 
-## [1.4.0] - 2026-02-10
+## [1.2.0] - 2026-02-10
 
 ### Added
 - **Composer Dependency Management**: Automatic installation and removal of third-party packages defined in module's `dependencies` array.
@@ -37,7 +37,7 @@ _(nothing yet)_
 - Fixed namespace resolution issues for module models.
 - Corrected repository class name generation during scaffolding.
 
-## [1.3.0] - 2025-09-17
+## [1.0.1] - 2025-09-23
 
 ### Added
 - Introduced `src/Listeners/` namespace for future module lifecycle event handling.
@@ -57,34 +57,8 @@ _(nothing yet)_
 
 ### Fixed
 - Prevented runtime errors in language check when translations return non-array values or directories are missing.
-
 ---
-
-## [1.2.0] - 2025-09-16
-
-### Added
-- New **DevOps stubs**: `DOCKER_SETUP.md`, `Dockerfile`, `dockerignore`, and configs under `/docker` (`php.ini`, `nginx.conf`, `supervisord.conf`).
-- `ModuleUninstalled` event added for lifecycle tracking.
-- Extended `PublishDevopsAssets` command to generate structured files for CI/CD, Docker, and K8s setups.
-
-### Changed
-- Updated **README.md** with DevOps publish command usage and documentation.
-- Improved migration stubs:
-  - Fixed `delete.stub` to correctly generate column drop migrations.
-  - Fixed `drop.stub` to properly handle table name resolution.
-- Enhanced **controller stubs** to resolve namespaces in subdirectories.
-- Refined `ModuleMarketplaceCommand` with better details, updates, and error handling.
-- Refactored `ModuleAnalyzeCommand` to integrate with `ModuleDependencyGraph` service.
-- Improved `MarketplaceService`, `ModuleDependencyGraph`, and `ModuleHealthCheck` for reliability and production readiness.
-
-### Fixed
-- Resolved missing stub errors for DevOps commands.
-- Fixed incorrect table name handling in **delete** and **drop** migration generators.
-- Ensured generated controller namespaces match actual folder structure.
-
----
-
-## [1.1.0] - 2025-09-15
+## [1.0.0] - 2025-09-22
 
 ### Added
 - Introduced enterprise modular support with new services: **Communication**, **Config**, **Messaging**, **ModuleMetrics**, **Security**.
@@ -114,16 +88,12 @@ _(nothing yet)_
   - `Repository`
   - `Resource`
   - `Service`
-
 ---
 
-## [1.0.1] - 2025-07-31
+## [1.0.1-alpha] - 2025-08-22
 
 ### Fixed
-- Fixed case sensitivity issues in file paths and namespace resolution to ensure cross-platform compatibility on Linux and Windows.
-  - Replaced manual `mkdir()` with `File::ensureDirectoryExists()` to handle OS differences.
-  - Ensured consistent class name formatting using `Str::studly()`.
-  - Normalized paths for autoloading accuracy.
+- Update README logo and clean up commented/unnecessary code
 
 ## [1.0.0-alpha] - 2025-07-31
 
