@@ -537,12 +537,12 @@ php artisan module:profile --duration=5                  # Run a simple module p
     "version": "1.0.0",
     "enabled": true,
     "dependencies": ["doctrine/dbal:*", "guzzlehttp/guzzle:^7.0"],
-    "dependents": ["Vishal", "Ashish"]
+    "dependents": ["Module1", "Module2"]
 }
 ```
 
 **Behavior:**
-- **Enable**: Installs Composer packages and prompts to enable required modules (Vishal, Ashish)
+- **Enable**: Installs Composer packages and prompts to enable required modules (Module1,Module2)
 - **Disable**: Removes unused Composer packages and blocks if other modules depend on it
 - **Sync**: Ensures all dependencies and dependents are properly managed
 
@@ -550,11 +550,11 @@ php artisan module:profile --duration=5                  # Run a simple module p
 # Enable module with dependencies
 php artisan module:enable User
 # Output: Installs doctrine/dbal, guzzlehttp/guzzle
-# Output: Prompts to enable Vishal and Ashish modules
+# Output: Prompts to enable Module1 and Module2 modules
 
 # Disable module (checks dependents)
-php artisan module:disable Vishal
-# Output: Error if User depends on Vishal (use --force to override)
+php artisan module:disable Module1
+# Output: Error if User depends on Module1 (use --force to override)
 
 # Sync with dependency management
 php artisan module:sync --json-priority
