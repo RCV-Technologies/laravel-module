@@ -3,12 +3,15 @@
 namespace RCV\Core\Console\Commands\Database\Migrations;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use RCV\Core\Console\Commands\Concerns\ConfirmsProduction;
 
 class ModuleMigrateCommand extends Command
 {
+    use ConfirmsProduction;
+
     protected $signature = 'module:migrate 
                             {module? : The name of the module} 
                             {--migration= : Run a specific migration file} 
@@ -18,6 +21,10 @@ class ModuleMigrateCommand extends Command
 
     public function handle()
     {
+        if (! $this->confirmToRunInProduction()) {
+            return Command::FAILURE;
+        }
+
         $moduleName = $this->argument('module');
         $migration = $this->option('migration');
         $force = $this->option('force');
@@ -29,6 +36,8 @@ class ModuleMigrateCommand extends Command
         } else {
             $this->migrateAllModules($force); // <-- this was missing before
         }
+
+        return Command::SUCCESS;
     }
 
     protected function migrateAllModules(bool $force = false): void

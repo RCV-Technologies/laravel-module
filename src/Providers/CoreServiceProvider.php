@@ -103,6 +103,7 @@ use RCV\Core\Console\Commands\Database\Migrations\ModuleMigrateResetCommand;
 use RCV\Core\Console\Commands\Database\Migrations\ModuleMigrationMakeCommand;
 use RCV\Core\Console\Commands\Database\Migrations\MigrateSingleModuleMigration;
 use RCV\Core\Console\Commands\Database\Migrations\ModuleMigrateRollbackCommand;
+use RCV\Core\Console\Commands\InitializeHooks;
 
 class CoreServiceProvider extends ServiceProvider
 {
@@ -115,6 +116,7 @@ class CoreServiceProvider extends ServiceProvider
      */
     protected $commands = [
         // Action Commands
+        InitializeHooks::class,
         ModuleMarketplaceCommand::class,
         ModuleStateCommand::class,
         ModuleEnableCommand::class,
@@ -208,6 +210,11 @@ class CoreServiceProvider extends ServiceProvider
 
         // Register configuration first
         $this->registerConfig();
+
+        // Register hook system if enabled in config
+        if (config('rcv-hooks.enabled') === true) {
+            $this->app->register(\RCV\Core\Hooks\Providers\HookServiceProvider::class);
+        }
 
         // Register event listeners
         Event::listen(ModuleEnabled::class, ClearCacheOnModuleEnable::class);
@@ -323,22 +330,21 @@ class CoreServiceProvider extends ServiceProvider
                     }
 
                     if ($event->command === 'db:seed') {
-                        // Only run when no specific class is provided
+                        // Only run with the default application seeder.
                         $input = $event->input ?? null;
-                        if ($input && $input->getOption('class')) {
+                        if ($this->hasExplicitSeederClass($input)) {
                             return;
                         }
 
-                        $modulesPath = base_path('Modules');
-                        if (!\Illuminate\Support\Facades\File::exists($modulesPath)) {
+                        $modules = $this->app->make(ModuleManager::class)->getEnabledModules();
+                        if (empty($modules)) {
                             return;
                         }
 
                         $rcvSeedingModules = true;
                         try {
-                            foreach (\Illuminate\Support\Facades\File::directories($modulesPath) as $moduleDir) {
-                                $moduleName = basename($moduleDir);
-                                $seederClass = "Modules\\\\{$moduleName}\\\\Database\\\\Seeders\\\\{$moduleName}DatabaseSeeder";
+                            foreach ($modules as $moduleName) {
+                                $seederClass = "Modules\\{$moduleName}\\Database\\Seeders\\{$moduleName}DatabaseSeeder";
                                 if (class_exists($seederClass)) {
                                     try {
                                         \Illuminate\Support\Facades\Artisan::call('db:seed', [
@@ -348,6 +354,7 @@ class CoreServiceProvider extends ServiceProvider
                                         $this->app['log']->info("Seeded module: {$moduleName}");
                                     } catch (\Throwable $t) {
                                         $this->app['log']->error("Failed seeding module {$moduleName}: " . $t->getMessage());
+                                        throw $t;
                                     }
                                 }
                             }
@@ -365,6 +372,30 @@ class CoreServiceProvider extends ServiceProvider
     }
 
     /**
+     * Determine whether db:seed was called for a specific seeder class.
+     */
+    protected function hasExplicitSeederClass($input): bool
+    {
+        if (! $input) {
+            return false;
+        }
+
+        if (method_exists($input, 'hasParameterOption') &&
+            $input->hasParameterOption(['--class', '--class='])) {
+            return true;
+        }
+
+        try {
+            $classArgument = $input->getArgument('class');
+        } catch (\Throwable $e) {
+            $classArgument = null;
+        }
+
+        return ! empty($classArgument) &&
+            $classArgument !== 'Database\\Seeders\\DatabaseSeeder';
+    }
+
+    /**
      * Register config files with improved error handling.
      */
     protected function registerConfig(): void
@@ -375,6 +406,7 @@ class CoreServiceProvider extends ServiceProvider
             'metrics' => __DIR__ . '/../Config/metrics.php',
             'security' => __DIR__ . '/../Config/security.php',
             'communication' => __DIR__ . '/../Config/communication.php',
+            'rcv-hooks' => __DIR__ . '/../Config/rcv-hooks.php',
         ];
 
         foreach ($configs as $key => $path) {
@@ -397,6 +429,7 @@ class CoreServiceProvider extends ServiceProvider
             __DIR__ . '/../Config/metrics.php' => config_path('metrics.php'),
             __DIR__ . '/../Config/security.php' => config_path('security.php'),
             __DIR__ . '/../Config/communication.php' => config_path('communication.php'),
+            __DIR__ . '/../Config/rcv-hooks.php' => config_path('rcv-hooks.php'),
         ], 'rcv-core-config');
     }
 

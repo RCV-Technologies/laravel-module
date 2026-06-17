@@ -5,14 +5,21 @@ namespace RCV\Core\Console\Commands\Database\Seeders;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Console\Commands\Concerns\ConfirmsProduction;
 
 class ModuleSeedCommand extends Command
 {
-    protected $signature = 'module:seed {module : The name of the module} {--class= : The seeder class to run} {--fresh : Drop all tables and re-run all migrations}';
+    use ConfirmsProduction;
+
+    protected $signature = 'module:seed {module : The name of the module} {--class= : The seeder class to run} {--fresh : Drop all tables and re-run all migrations} {--force : Force the operation to run when in production}';
     protected $description = 'Seed the specific module\'s database seeds';
 
     public function handle()
     {
+        if (! $this->confirmToRunInProduction()) {
+            return Command::FAILURE;
+        }
+
         $module = $this->argument('module');
         $seederClass = $this->option('class');
         $fresh = $this->option('fresh');
@@ -59,13 +66,15 @@ class ModuleSeedCommand extends Command
             
             if ($actualPath) {
                 Artisan::call('migrate:rollback', [
-                    '--path' => $actualPath
+                    '--path' => $actualPath,
+                    '--force' => true,
                 ]);
                 $this->line(Artisan::output());
                 
                 $this->info("Re-running migrations for module: {$module}");
                 Artisan::call('migrate', [
-                    '--path' => $actualPath
+                    '--path' => $actualPath,
+                    '--force' => true,
                 ]);
                 $this->line(Artisan::output());
             } else {
@@ -78,7 +87,8 @@ class ModuleSeedCommand extends Command
         
         try {
             Artisan::call('db:seed', [
-                '--class' => $fullSeederClass
+                '--class' => $fullSeederClass,
+                '--force' => true,
             ]);
             
             $output = Artisan::output();

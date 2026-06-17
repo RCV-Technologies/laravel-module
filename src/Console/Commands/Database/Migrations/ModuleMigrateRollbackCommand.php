@@ -5,15 +5,22 @@ namespace RCV\Core\Console\Commands\Database\Migrations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Console\Commands\Concerns\ConfirmsProduction;
 
 class ModuleMigrateRollbackCommand extends Command
 {
+    use ConfirmsProduction;
+
     protected $signature = 'module:migrate-rollback {--module= : The name of the module to rollback} {--step=1 : Number of migrations to rollback} {--force : Force rollback without confirmation}';
 
     protected $description = 'Rollback migrations for a specific module or all modules';
 
     public function handle()
     {
+        if (! $this->confirmToRunInProduction()) {
+            return Command::FAILURE;
+        }
+
         $module = $this->option('module');
 
         if ($module) {
@@ -21,10 +28,12 @@ class ModuleMigrateRollbackCommand extends Command
         } else {
             if (!$this->option('force') && !$this->confirm('Are you sure you want to rollback migrations for ALL modules?')) {
                 $this->info('Operation cancelled.');
-                return;
+                return Command::FAILURE;
             }
             $this->rollbackAllModules();
         }
+
+        return Command::SUCCESS;
     }
 
     protected function rollbackModule(string $module)
@@ -122,4 +131,3 @@ class ModuleMigrateRollbackCommand extends Command
         }
     }
 }
-

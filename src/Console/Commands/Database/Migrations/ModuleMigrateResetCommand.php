@@ -5,14 +5,21 @@ namespace RCV\Core\Console\Commands\Database\Migrations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Console\Commands\Concerns\ConfirmsProduction;
 
 class ModuleMigrateResetCommand extends Command
 {
-    protected $signature = 'module:migrate-reset';
+    use ConfirmsProduction;
+
+    protected $signature = 'module:migrate-reset {--force : Force the operation to run when in production}';
     protected $description = 'Reset the modules migrations.';
 
     public function handle()
     {
+        if (! $this->confirmToRunInProduction()) {
+            return Command::FAILURE;
+        }
+
         $modulesPath = base_path('Modules');
         $modules = File::directories($modulesPath);
 
@@ -41,5 +48,7 @@ class ModuleMigrateResetCommand extends Command
         }
 
         $this->info('All module migrations have been reset.');
+
+        return Command::SUCCESS;
     }
 }

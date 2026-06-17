@@ -6,14 +6,21 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
+use RCV\Core\Console\Commands\Concerns\ConfirmsProduction;
 
 class ModuleMigrateFresh extends Command
 {
-    protected $signature = 'module:migrate-fresh';
+    use ConfirmsProduction;
+
+    protected $signature = 'module:migrate-fresh {--force : Force the operation to run when in production}';
     protected $description = 'Force drop all tables and re-run all module migrations';
 
     public function handle()
     {
+        if (! $this->confirmToRunInProduction()) {
+            return Command::FAILURE;
+        }
+
         $this->info('🔁 Disabling foreign key checks...');
         Schema::disableForeignKeyConstraints();
 
@@ -59,5 +66,7 @@ class ModuleMigrateFresh extends Command
         Artisan::call('view:clear');
 
         $this->info('✅ Module migrations completed successfully.');
+
+        return Command::SUCCESS;
     }
 }
