@@ -16,23 +16,9 @@ return array (
       0 => 'Core',
     ),
   ),
-  'commands' => 
-  array (
-    0 => 'Rcv\\Core\\Console\\Commands\\ModuleAutoloadCommand',
-    1 => 'Rcv\\Core\\Console\\Commands\\Make\\ModuleMakeCommand',
-    2 => 'Rcv\\Core\\Console\\Commands\\Make\\ModuleMakeModelCommand',
-    3 => 'Rcv\\Core\\Console\\Commands\\Make\\ModuleMakeControllerCommand',
-    4 => 'Rcv\\Core\\Console\\Commands\\Make\\ModuleMakeResourceCommand',
-    5 => 'Rcv\\Core\\Console\\Commands\\Actions\\ModuleEnableCommand',
-    6 => 'Rcv\\Core\\Console\\Commands\\Actions\\ModuleDisableCommand',
-    7 => 'Rcv\\Core\\Console\\Commands\\Actions\\ModuleMarketplaceCommand',
-    8 => 'Rcv\\Core\\Console\\Commands\\ModuleHealthCheckCommand',
-    9 => 'Rcv\\Core\\Console\\Commands\\Database\\Migrations\\ModuleMigrateCommand',
-    10 => 'Rcv\\Core\\Console\\Commands\\Make\\ModuleMiddlewareCommand',
-  ),
   'paths' => 
   array (
-    'modules' => 'C:\\Users\\Day Shift\\Desktop\\Demo3\\demo\\modules',
+    'modules' => '/var/www/html/RCVCore/Modules',
     'generator' => 
     array (
       'config' => 'src/Config',
@@ -66,6 +52,26 @@ return array (
   ),
   'modules' => 
   array (
-    
+    0 => 'UserManagement',
+  ),
+  'lazy_load_modules' => false,
+  'module_warmup_enabled' => false,
+  'max_boot_failures' => 3,
+  'fail_fast_on_error' => false,
+  'strict_mode' => false,
+  'hot_reload' => false,
+  'performance_monitoring' => false,
+  'seed_modules' => false,
+  'messaging' => 
+  array (
+    'queue' => NULL,
+    'after_commit' => false,
+    'tries' => 5,
+    'backoff' => 
+    array (
+      0 => 5,
+      1 => 15,
+      2 => 60,
+    ),
   ),
 );

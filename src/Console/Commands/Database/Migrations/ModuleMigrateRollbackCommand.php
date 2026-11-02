@@ -30,8 +30,8 @@ class ModuleMigrateRollbackCommand extends Command
     protected function rollbackModule(string $module)
     {
         // Check both possible path cases
-        $pathLower = base_path("Modules/{$module}/src/database/migrations");
-        $pathUpper = base_path("Modules/{$module}/src/Database/Migrations");
+        $pathLower = module_path($module, 'src/database/migrations');
+        $pathUpper = module_path($module, 'src/Database/Migrations');
         
         $migrationPath = null;
         if (File::exists($pathLower)) {

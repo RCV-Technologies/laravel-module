@@ -3,8 +3,8 @@
 namespace RCV\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class ModuleMakeControllerCommand extends Command
 {
@@ -37,23 +37,17 @@ class ModuleMakeControllerCommand extends Command
         $isApi = $this->option('api');
 
         // Check module exists
-        $modulePath = base_path("Modules/{$module}");
-        if (!File::exists($modulePath)) {
+        $modulePath = module_path($module);
+        if (! File::exists($modulePath)) {
             $this->error("Module [{$module}] does not exist.");
+
             return 1;
         }
 
-        // Ensure base controller exists
-        $this->ensureBaseController($module);
-
         // Controller directory
         $controllerDir = "{$modulePath}/src/Http/Controllers";
-        if (!empty($subPath)) {
-            $controllerDir .= '/' . $subPath;
-        }
-
-        if (!File::exists($controllerDir)) {
-            File::makeDirectory($controllerDir, 0755, true);
+        if (! empty($subPath)) {
+            $controllerDir .= '/'.$subPath;
         }
 
         $controllerFile = "{$controllerDir}/{$className}.php";
@@ -61,7 +55,15 @@ class ModuleMakeControllerCommand extends Command
         if (File::exists($controllerFile)) {
             $this->error("Controller [{$className}] already exists.");
             $this->info("Path: {$controllerFile}");
+
             return 1;
+        }
+
+        // Ensure base controller exists only after confirming the target is new.
+        $this->ensureBaseController($module);
+
+        if (! File::exists($controllerDir)) {
+            File::makeDirectory($controllerDir, 0755, true);
         }
 
         $stub = $this->getStub($isResource, $isApi);
@@ -86,18 +88,18 @@ class ModuleMakeControllerCommand extends Command
      */
     protected function ensureBaseController(string $module): void
     {
-        $controllerDir = base_path("Modules/{$module}/src/Http/Controllers");
+        $controllerDir = module_path($module, 'src/Http/Controllers');
         $baseController = "{$controllerDir}/ModuleController.php";
 
         if (File::exists($baseController)) {
             return;
         }
 
-        if (!File::exists($controllerDir)) {
+        if (! File::exists($controllerDir)) {
             File::makeDirectory($controllerDir, 0755, true);
         }
 
-        $stub = File::get(__DIR__ . '/../stubs/base-controller.stub');
+        $stub = File::get(__DIR__.'/../stubs/base-controller.stub');
         $stub = str_replace('{{ module_name }}', $module, $stub);
 
         File::put($baseController, $stub);
@@ -128,7 +130,7 @@ class ModuleMakeControllerCommand extends Command
         bool $isResource,
         string $destination
     ): void {
-        $stub = File::get(__DIR__ . '/../stubs/' . $stubName);
+        $stub = File::get(__DIR__.'/../stubs/'.$stubName);
 
         // Class name
         $stub = str_replace('{{ class_name }}', $className, $stub);
@@ -148,8 +150,8 @@ class ModuleMakeControllerCommand extends Command
 
         // Namespace
         $namespace = "Modules\\{$module}\\Http\\Controllers";
-        if (!empty($subPath)) {
-            $namespace .= '\\' . str_replace('/', '\\', Str::studly($subPath));
+        if (! empty($subPath)) {
+            $namespace .= '\\'.str_replace('/', '\\', Str::studly($subPath));
         }
 
         $stub = str_replace('{{ namespace }}', $namespace, $stub);

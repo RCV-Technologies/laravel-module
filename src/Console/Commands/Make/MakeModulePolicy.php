@@ -26,7 +26,7 @@ class MakeModulePolicy extends Command
         $subNamespace = implode('\\', array_map([Str::class, 'studly'], $parts)); // namespace under Policies
 
         // Path & namespace
-        $basePath = base_path("Modules/{$module}/src/Policies" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($module, 'src/Policies') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Policies" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

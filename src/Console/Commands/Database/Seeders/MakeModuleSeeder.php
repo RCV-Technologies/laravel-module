@@ -19,7 +19,7 @@ class MakeModuleSeeder extends Command
         $seederName = Str::studly($this->argument('name'));
         $moduleName = Str::studly($this->argument('module'));
 
-        $seederPath = base_path("Modules/{$moduleName}/src/Database/Seeders");
+        $seederPath = module_path($moduleName, 'src/Database/Seeders');
 
         if (!File::exists($seederPath)) {
             File::makeDirectory($seederPath, 0755, true);

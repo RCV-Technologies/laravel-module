@@ -3,7 +3,6 @@
 namespace RCV\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
 
 class ModuleMakeRepositoryCommand extends Command
@@ -25,15 +24,16 @@ class ModuleMakeRepositoryCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
         $name = $this->argument('name'); // Can be nested like "User/Profile"
         $module = $this->argument('module');
 
         // Ensure module exists
-        $modulePath = base_path("Modules/{$module}");
-        if (!File::exists($modulePath)) {
+        $modulePath = module_path($module);
+        if (! File::exists($modulePath)) {
             $this->error("Module [{$module}] does not exist.");
+
             return 1;
         }
 
@@ -49,25 +49,32 @@ class ModuleMakeRepositoryCommand extends Command
         }
 
         // Ensure directory exists
-        if (!File::exists($repositoryPath)) {
+        if (! File::exists($repositoryPath)) {
             File::makeDirectory($repositoryPath, 0755, true);
         }
 
         // Full path for repository file
         $repositoryFile = "{$repositoryPath}/{$className}Repository.php";
 
+        if (File::exists($repositoryFile)) {
+            $this->error("Repository [{$className}] already exists: {$repositoryFile}");
+
+            return self::FAILURE;
+        }
+
         // Check if stub exists
-        $stubPath = __DIR__ . '/../stubs/repository.stub';
-        if (!File::exists($stubPath)) {
+        $stubPath = __DIR__.'/../stubs/repository.stub';
+        if (! File::exists($stubPath)) {
             $this->error("Stub file not found at {$stubPath}");
-            return 1;
+
+            return self::FAILURE;
         }
 
         // Get stub content and replace placeholders
         $stub = File::get($stubPath);
         $content = str_replace(
             ['{{ module_name }}', '{{ class_name }}'],
-            [$module, $className],
+            [$module, "{$className}Repository"],
             $stub
         );
 
@@ -77,6 +84,6 @@ class ModuleMakeRepositoryCommand extends Command
         $this->info("Repository [{$className}] created successfully.");
         $this->info("Path: {$repositoryFile}");
 
-        return 0;
+        return self::SUCCESS;
     }
 }

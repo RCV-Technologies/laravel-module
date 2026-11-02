@@ -22,7 +22,7 @@
             <i class="fas fa-arrow-left"></i> Go Back
         </a>
         
-        <a href="{{ route('home') }}" class="btn btn-secondary">
+        <a href="{{ \Illuminate\Support\Facades\Route::has('home') ? route('home') : url('/') }}" class="btn btn-secondary">
             <i class="fas fa-home"></i> Go to Home
         </a>
         

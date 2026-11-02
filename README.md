@@ -1,4 +1,4 @@
-# 🚀 Laravel Core Module  
+# 🚀 Laravel Core Module
 
 <div align="center">
 
@@ -344,7 +344,6 @@ php artisan module:make {name}                    # Create new module
 # 🔧 Module State Management
 php artisan module:enable {name}                  # Enable specific module (auto-enables dependents)
 php artisan module:disable {name}                 # Disable specific module (checks for dependents)
-php artisan module:sync                           # Sync module states and dependencies
 
 # 📋 Module Information
 php artisan module:marketplace list               # List all modules with status
@@ -556,9 +555,8 @@ php artisan module:enable User
 php artisan module:disable Module1
 # Output: Error if User depends on Module1 (use --force to override)
 
-# Sync with dependency management
-php artisan module:sync --json-priority
-# Output: Installs/removes dependencies for all modules
+# Module enabled state is stored in the module_states database table.
+# Use module:enable or module:disable to change it.
 ```
 
 ### 🔤 Module Translation Check Command

@@ -31,7 +31,7 @@ class ModuleMakeListener extends Command
         $listenerSubPath = implode('/', array_map([Str::class, 'studly'], $listenerParts));
 
         $listenerNamespace = "Modules\\{$module}\\Listeners" . ($listenerSubNamespace ? "\\{$listenerSubNamespace}" : '');
-        $listenerPath = base_path("Modules/{$modulePath}/src/Listeners" . ($listenerSubPath ? "/{$listenerSubPath}" : ''));
+        $listenerPath = module_path($modulePath, 'src/Listeners') . ($listenerSubPath ? "/{$listenerSubPath}" : '');
 
         // --- Event ---
         $eventInput = $this->argument('event');

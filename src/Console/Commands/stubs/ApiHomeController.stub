@@ -3,14 +3,7 @@
 namespace Modules\{{ module_name }}\Http\Controllers\Api;
 
 use Illuminate\Routing\Controller;
-use Illuminate\Http\Request;
 
 class HomeController extends Controller
 {
-    public function index(Request $request)
-    {
-        return response()->json([
-            'message' => 'Welcome to the {{ module_name }} API!'
-        ]);
-    }
-} 
+}

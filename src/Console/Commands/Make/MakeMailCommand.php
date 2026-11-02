@@ -33,7 +33,7 @@ class MakeMailCommand extends Command
         $subNamespace = implode('\\', array_map([Str::class, 'studly'], $parts));
 
         // --- Paths & Namespace ---
-        $moduleBasePath = base_path("Modules/{$module}");
+        $moduleBasePath = module_path($module);
         if (! $this->files->exists($moduleBasePath)) {
             $this->error("Module '{$module}' does not exist.");
             return Command::FAILURE;

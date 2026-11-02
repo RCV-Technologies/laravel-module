@@ -26,7 +26,7 @@ class MakeModuleObserver extends Command
         $subNamespace = implode('\\', array_map([Str::class, 'studly'], $parts)); // namespace under Observers
 
         // Construct paths
-        $basePath = base_path("Modules/{$module}/src/Observers" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($module, 'src/Observers') . ($subPath ? "/{$subPath}" : '');
         $filePath = "{$basePath}/{$className}.php";
         $namespace = "Modules\\{$module}\\Observers" . ($subNamespace ? "\\{$subNamespace}" : '');
 

@@ -16,7 +16,7 @@ class MigrateSingleModuleMigration extends Command
         $migrationName = $this->argument('migration_name');
         $moduleName = $this->argument('module_name');
 
-        $migrationPath = base_path("Modules/{$moduleName}/src/Database/Migrations");
+        $migrationPath = module_path($moduleName, 'src/Database/Migrations');
 
         
         if (!File::exists($migrationPath)) {

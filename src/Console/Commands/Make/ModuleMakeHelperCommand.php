@@ -29,7 +29,7 @@ class ModuleMakeHelperCommand extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $helperParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$modulePath}/src/Helpers" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($modulePath, 'src/Helpers') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Helpers" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

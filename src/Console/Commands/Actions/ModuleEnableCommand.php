@@ -2,30 +2,62 @@
 
 namespace RCV\Core\Console\Commands\Actions;
 
-use Illuminate\Support\Facades\Log;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use RCV\Core\Services\ComposerDependencyManager;
+use RCV\Core\Events\ModuleEnabled;
+use RCV\Core\Services\ModuleManifestValidator;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModuleEnableCommand extends Command
 {
-    // Accept multiple names (1 or more)
-    protected $signature = 'module:enable {module* : Module name(s) to enable}';
+    // Accept multiple names, or use --all to enable every module in Modules/.
+    protected $signature = 'module:enable {module?* : Module name(s) to enable} {--all : Enable all modules in Modules/}';
+
     protected $description = 'Enable one or more modules from Modules/ or vendor/rcv/';
 
-    public function handle()
+    public function handle(): int
     {
-        $names = $this->argument('module');
-        $success = true;
-        $dependencyManager = new ComposerDependencyManager($this);
+        $names = $this->argument('module') ?? [];
 
+        if ($this->option('all')) {
+            $names = [];
+
+            foreach (File::directories(base_path('Modules')) as $modulePath) {
+                $moduleName = basename($modulePath);
+
+                if (ModuleNameValidator::isValid($moduleName) && File::exists("{$modulePath}/module.json")) {
+                    $names[] = $moduleName;
+                }
+            }
+
+            if ($names === []) {
+                $this->warn('No modules with a module.json manifest were found in Modules/.');
+
+                return self::SUCCESS;
+            }
+
+            $this->info('Enabling all discovered modules: '.implode(', ', $names));
+        } elseif ($names === []) {
+            $this->error('Provide one or more module names, or use --all.');
+
+            return self::FAILURE;
+        }
+
+        $success = true;
         foreach ($names as $name) {
             try {
-                $modulePath = base_path("Modules/{$name}");
+                if (! ModuleNameValidator::isValid($name)) {
+                    $this->error("Invalid module name [{$name}]. Use letters, numbers, hyphens, and underscores; start with a letter.");
+                    $success = false;
+
+                    continue;
+                }
+
+                $modulePath = module_path($name);
                 $isVendor = false;
 
-                if (!File::exists($modulePath)) {
+                if (! File::exists($modulePath)) {
                     $vendorPath = base_path("vendor/rcv/{$name}");
                     if (File::exists($vendorPath)) {
                         $modulePath = $vendorPath;
@@ -33,39 +65,26 @@ class ModuleEnableCommand extends Command
                     } else {
                         $this->error("Module [{$name}] not found.");
                         $success = false;
+
                         continue;
                     }
                 }
 
-                // Defaults
-                $version = '1.0.0';
-                $description = "{$name} module for the application";
-
                 $moduleJsonPath = "{$modulePath}/module.json";
-                if (File::exists($moduleJsonPath)) {
-                    $json = json_decode(File::get($moduleJsonPath), true);
-                    $version = $json['version'] ?? $version;
-                    $description = $json['description'] ?? $description;
-                }
+                $json = ModuleManifestValidator::read($name, $moduleJsonPath);
+                $version = $json['version'];
+                $description = $json['description'] ?? "{$name} module for the application";
 
                 // Check and handle dependent modules BEFORE enabling this module
-                $this->info("Checking dependencies for module [{$name}]...");
-                $this->handleDependentModules($name, $dependencyManager);
+                $this->info("Checking module requirements for [{$name}]...");
+                $this->handleDependentModules($name);
 
                 // Now we can proceed with enabling
                 $this->info("Enabling module [{$name}]...");
 
-                // Install module dependencies before enabling
-                $this->info("Installing dependencies for module [{$name}]...");
-                if (!$dependencyManager->installModuleDependencies($name)) {
-                    $this->warn("Failed to install some dependencies for module [{$name}], but continuing with enable...");
-                }
-
                 // Update or insert module state
                 $existing = DB::table('module_states')->where('name', $name)->first();
                 if ($existing) {
-                    Log::info("Calling of the enable");
-
                     DB::table('module_states')->where('name', $name)->update([
                         'enabled' => true,
                         'status' => 'enabled',
@@ -85,34 +104,16 @@ class ModuleEnableCommand extends Command
                     ]);
                 }
 
-                // Update module.json
-                if (File::exists($moduleJsonPath)) {
-                    $json['enabled'] = true;
-                    $json['last_enabled_at'] = now()->toIso8601String();
-                    File::put($moduleJsonPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-                }
-
                 // ✅ Dispatch event AFTER successful enable
-                event(new \RCV\Core\Events\ModuleEnabled($name));
+                event(new ModuleEnabled($name));
 
                 $this->info("Module [{$name}] enabled.");
 
             } catch (\Exception $e) {
-                $this->error("Error enabling module [{$name}]: " . $e->getMessage());
+                $this->error("Error enabling module [{$name}]: ".$e->getMessage());
                 $success = false;
             }
         }
-
-        // Composer and discovery only once
-        $this->info("Running composer dump-autoload...");
-        exec('composer dump-autoload');
-
-        $this->info("Running package discovery...");
-        $this->call('package:discover');
-
-        // Update autoload configuration for enabled modules
-        $this->info("Updating module autoload configuration...");
-        $this->call('module:autoload');
 
         return $success ? 0 : 1;
     }
@@ -120,21 +121,17 @@ class ModuleEnableCommand extends Command
     /**
      * Handle dependent modules (modules that this module DEPENDS ON)
      * When enabling a module, check if required modules exist and enable them first
-     *
-     * @param string $moduleName
-     * @param ComposerDependencyManager $dependencyManager
-     * @return void
      */
-    protected function handleDependentModules(string $moduleName, ComposerDependencyManager $dependencyManager): void
+    protected function handleDependentModules(string $moduleName): void
     {
-        $modulePath = base_path("Modules/{$moduleName}");
+        $modulePath = module_path($moduleName);
         $moduleJsonPath = "{$modulePath}/module.json";
 
-        if (!File::exists($moduleJsonPath)) {
+        if (! File::exists($moduleJsonPath)) {
             return;
         }
 
-        $json = json_decode(File::get($moduleJsonPath), true);
+        $json = ModuleManifestValidator::read($moduleName, $moduleJsonPath);
         $dependents = $json['dependents'] ?? [];
 
         if (empty($dependents)) {
@@ -142,35 +139,39 @@ class ModuleEnableCommand extends Command
         }
 
         $this->newLine();
-        $this->info("Module [{$moduleName}] depends on: " . implode(', ', $dependents));
+        $this->info("Module [{$moduleName}] depends on: ".implode(', ', $dependents));
 
         $missingModules = [];
         $modulesToEnable = [];
 
         // First, check if all required modules exist
         foreach ($dependents as $requiredModule) {
-            $requiredPath = base_path("Modules/{$requiredModule}");
+            if (! ModuleNameValidator::isValid($requiredModule)) {
+                throw new \InvalidArgumentException('Module manifest contains an invalid dependency name.');
+            }
 
-            if (!File::exists($requiredPath)) {
+            $requiredPath = module_path($requiredModule);
+
+            if (! File::exists($requiredPath)) {
                 $missingModules[] = $requiredModule;
             } else {
                 // Check if already enabled
                 $requiredState = DB::table('module_states')->where('name', $requiredModule)->first();
-                if (!$requiredState || !$requiredState->enabled) {
+                if (! $requiredState || ! $requiredState->enabled) {
                     $modulesToEnable[] = $requiredModule;
                 }
             }
         }
 
         // If any required module is missing, ask user
-        if (!empty($missingModules)) {
-            $this->error("⚠️  Required module(s) not found: " . implode(', ', $missingModules));
-            
-            if (!$this->confirm("Module [{$moduleName}] requires these modules to work properly. Do you want to continue anyway?", false)) {
+        if (! empty($missingModules)) {
+            $this->error('⚠️  Required module(s) not found: '.implode(', ', $missingModules));
+
+            if (! $this->confirm("Module [{$moduleName}] requires these modules to work properly. Do you want to continue anyway?", false)) {
                 $this->error("Operation cancelled. Module [{$moduleName}] was NOT enabled.");
-                throw new \Exception("Required module(s) not found: " . implode(', ', $missingModules));
+                throw new \Exception('Required module(s) not found: '.implode(', ', $missingModules));
             }
-            
+
             $this->warn("Continuing without required modules. Module [{$moduleName}] may not work correctly.");
         }
 
@@ -180,21 +181,16 @@ class ModuleEnableCommand extends Command
                 $this->info("Enabling required module [{$requiredModule}]...");
 
                 try {
-                    $requiredPath = base_path("Modules/{$requiredModule}");
-                    
-                    // Install dependencies for the required module
-                    if (!$dependencyManager->installModuleDependencies($requiredModule)) {
-                        $this->warn("Failed to install some dependencies for module [{$requiredModule}], but continuing...");
-                    }
+                    $requiredPath = module_path($requiredModule);
 
                     // Enable the required module
                     $requiredJsonPath = "{$requiredPath}/module.json";
-                    $requiredJson = json_decode(File::get($requiredJsonPath), true);
-                    $version = $requiredJson['version'] ?? '1.0.0';
+                    $requiredJson = ModuleManifestValidator::read($requiredModule, $requiredJsonPath);
+                    $version = $requiredJson['version'];
                     $description = $requiredJson['description'] ?? "{$requiredModule} module";
 
                     $requiredState = DB::table('module_states')->where('name', $requiredModule)->first();
-                    
+
                     if ($requiredState) {
                         DB::table('module_states')->where('name', $requiredModule)->update([
                             'enabled' => true,
@@ -215,18 +211,13 @@ class ModuleEnableCommand extends Command
                         ]);
                     }
 
-                    // Update module.json
-                    $requiredJson['enabled'] = true;
-                    $requiredJson['last_enabled_at'] = now()->toIso8601String();
-                    File::put($requiredJsonPath, json_encode($requiredJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
-                    event(new \RCV\Core\Events\ModuleEnabled($requiredModule));
+                    event(new ModuleEnabled($requiredModule));
 
                     $this->info("✅ Required module [{$requiredModule}] enabled successfully.");
                 } catch (\Exception $e) {
-                    $this->error("Failed to enable required module [{$requiredModule}]: " . $e->getMessage());
-                    
-                    if (!$this->confirm("Continue enabling [{$moduleName}] without [{$requiredModule}]?", false)) {
+                    $this->error("Failed to enable required module [{$requiredModule}]: ".$e->getMessage());
+
+                    if (! $this->confirm("Continue enabling [{$moduleName}] without [{$requiredModule}]?", false)) {
                         throw new \Exception("Failed to enable required module [{$requiredModule}]");
                     }
                 }

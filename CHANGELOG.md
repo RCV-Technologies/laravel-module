@@ -5,9 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-04
 
-_(nothing yet)_
+### Fixed
+- **Safe module registration**: Removed the `config/app.php` rewrite so evaluated application configuration is never serialized back to disk.
+- **Safer middleware logging**: Disabled per-request logging and limited error logs to exception class and module context, avoiding query-string and stack-trace disclosure.
+- **Targeted module cache invalidation**: Module enable/disable events now invalidate package-owned entries instead of flushing the application's entire cache store.
+- **Controlled Composer dependencies**: Disabled automatic Composer dependency installation and removal from module manifests.
+- **Validated module operations**: Validate module names before filesystem operations and store the active CLI module in runtime config instead of editing `.env`.
+- **Stable module cache key**: Derive the enabled-module cache key from a fixed package key using SHA-256, without using `app.key`.
+- **Module seeder discovery**: Corrected seeder class resolution and limit the opt-in seeder hook to enabled modules; the hook remains disabled by default.
+- **Single provider boot**: Removed the second module-provider boot pass and made generated event providers skip duplicate email-verification listener registration.
+- **Cache store compatibility**: Added indexed-key invalidation for cache stores that do not support cache tags.
+- **Module state persistence**: Persist lifecycle state in `module_states` without replacing module manifest data.
+- **Single command registration**: Register package console commands once.
+- **Cached enabled modules**: Cache the enabled-module list indefinitely and refresh it after state changes. Provider boot no longer queries module state or checks/creates Laravel's migrations table, and cache access is skipped before Laravel binds the cache service.
+- **Configurable message dispatch**: Support configurable queues, after-commit dispatch, and backoff.
+- **Middleware exception handling**: Log safe context and rethrow exceptions so Laravel preserves validation, authorization, and other response behavior without exposing exception text.
+- **Module error layout**: Add the shared `core::layouts.error` view used by the package's disabled-module and module-error pages.
+- **Framework test matrix**: Add CI coverage for Laravel 10–13 and PHP 8.2–8.4, with tests for middleware exception propagation and package error-view rendering.
+- **Migration boot performance**: Move migration-table setup and metadata updates out of provider boot; providers now only register migration paths.
 
 ## [1.2.0] - 2026-02-10
 

@@ -2,17 +2,25 @@
 
 namespace RCV\Core;
 
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use RCV\Core\Contracts\ModuleInterface;
 use RCV\Core\Install\BaseInstaller;
+use RCV\Core\Models\ModuleState;
+use RCV\Core\Services\ModuleManager;
+use RCV\Core\Services\ModuleNameValidator;
 
 abstract class Module implements ModuleInterface
 {
     protected $name;
+
     protected $version;
+
     protected $description;
+
     protected $enabled = false;
+
     protected $path;
+
     protected $installer;
 
     public function __construct()
@@ -23,17 +31,19 @@ abstract class Module implements ModuleInterface
         $this->path = $this->getPath();
         $this->installer = $this->getInstaller();
 
-        // Load enabled state from module.json
-        $moduleJsonPath = $this->path . '/module.json';
-        if (File::exists($moduleJsonPath)) {
-            $moduleJson = json_decode(File::get($moduleJsonPath), true);
-            $this->enabled = $moduleJson['enabled'] ?? false;
+        try {
+            $this->enabled = app(ModuleManager::class)->isModuleEnabled($this->name);
+        } catch (\Throwable $exception) {
+            Log::debug("Unable to load cached state for module [{$this->name}].", ['exception' => $exception]);
         }
     }
 
     abstract public function getName(): string;
+
     abstract public function getVersion(): string;
+
     abstract public function getDescription(): string;
+
     abstract protected function getInstaller(): BaseInstaller;
 
     public function isEnabled(): bool
@@ -47,48 +57,68 @@ abstract class Module implements ModuleInterface
             return true;
         }
 
+        $completedSteps = [];
+        $failedStep = 'recording_install_state';
+
         try {
-            // Run installer
+            $this->persistModuleState(false, 'installing');
+
+            $failedStep = 'installer';
             $this->installer->install();
+            $completedSteps[] = 'installer';
 
-            // Update composer.json
-            $this->updateComposerJson(true);
-
-            // Update config/app.php
-            $this->updateAppConfig(true);
+            $failedStep = 'activating_module';
+            $this->persistModuleState(true, 'enabled', 'last_enabled_at');
 
             $this->enabled = true;
+            app(ModuleManager::class)->refreshEnabledModulesCache();
+
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->enabled = false;
+            $this->recordLifecycleFailure('enable', $failedStep, $completedSteps, $e, false);
+
             return false;
         }
     }
 
     public function disable(): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return true;
         }
 
+        $completedSteps = [];
+        $failedStep = 'recording_uninstall_state';
+
         try {
-            // Run uninstaller
+            $this->persistModuleState(true, 'disabling');
+
+            $failedStep = 'uninstaller';
             $this->installer->uninstall();
+            $completedSteps[] = 'uninstaller';
 
-            // Update composer.json
-            $this->updateComposerJson(false);
-
-            // Update config/app.php
-            $this->updateAppConfig(false);
+            $failedStep = 'deactivating_module';
+            $this->persistModuleState(false, 'disabled', 'last_disabled_at');
 
             $this->enabled = false;
+            app(ModuleManager::class)->refreshEnabledModulesCache();
+
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->enabled = true;
+            $this->recordLifecycleFailure('disable', $failedStep, $completedSteps, $e, true);
+
             return false;
         }
     }
 
     public function getPath(): string
     {
+        if (! ModuleNameValidator::isValid($this->getModuleNameLower())) {
+            throw new \InvalidArgumentException('Invalid module name.');
+        }
+
         return module_path($this->getModuleNameLower());
     }
 
@@ -96,6 +126,7 @@ abstract class Module implements ModuleInterface
     {
         // Convert camel case to kebab case
         $name = preg_replace('/(?<!^)[A-Z]/', '-$0', $this->name);
+
         // Convert to lowercase
         return strtolower($name);
     }
@@ -106,91 +137,45 @@ abstract class Module implements ModuleInterface
         return str_replace(' ', '', ucwords(str_replace('-', ' ', $this->getModuleNameLower())));
     }
 
-    protected function updateComposerJson(bool $enable): void
+    protected function persistModuleState(bool $enabled, string $status, ?string $timestampColumn = null): void
     {
-        $composerJson = json_decode(File::get(base_path('composer.json')), true);
-        $moduleNameLower = $this->getModuleNameLower();
-        $moduleNameStudly = $this->getModuleNameStudly();
-        
-        if ($enable) {
-            // Add to require section if not exists
-            if (!isset($composerJson['require']["Modules/{$moduleNameLower}"])) {
-                $composerJson['require']["Modules/{$moduleNameLower}"] = "*";
-            }
-            
-            // Add to autoload psr-4 section if not exists
-            if (!isset($composerJson['autoload']['psr-4']["Modules\\{$moduleNameStudly}\\"])) {
-                $composerJson['autoload']['psr-4']["Modules\\{$moduleNameStudly}\\"] = "packages/Modules/{$moduleNameLower}/src/";
-            }
-        } else {
-            // Remove from require section
-            unset($composerJson['require']["Modules/{$moduleNameLower}"]);
-            
-            // Remove from autoload psr-4 section
-            unset($composerJson['autoload']['psr-4']["Modules\\{$moduleNameStudly}\\"]);
+        $state = ModuleState::firstOrNew(['name' => $this->name]);
+        $state->version = $this->version;
+        $state->description = $this->description;
+        $state->enabled = $enabled;
+        $state->status = $status;
+        if ($timestampColumn !== null) {
+            $state->{$timestampColumn} = now();
         }
-        
-        // Sort arrays to maintain consistency
-        ksort($composerJson['require']);
-        ksort($composerJson['autoload']['psr-4']);
-        
-        File::put(
-            base_path('composer.json'),
-            json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-        );
+        $state->save();
     }
 
-    protected function updateAppConfig(bool $enable): void
-    {
-        $configPath = config_path('app.php');
-        $config = File::get($configPath);
-        $moduleNameStudly = $this->getModuleNameStudly();
-        $providerClass = "        Modules\\{$moduleNameStudly}\\Providers\\{$moduleNameStudly}ServiceProvider::class,";
-        $searchPattern = "        /*\n         * Module Service Providers...\n         */\n";
-        
-        if ($enable) {
-            if (strpos($config, $providerClass) === false) {
-                $config = str_replace(
-                    $searchPattern,
-                    $searchPattern . $providerClass . "\n",
-                    $config
-                );
-            }
-        } else {
-            $config = str_replace($providerClass . "\n", '', $config);
-        }
-        
-        File::put($configPath, $config);
+    protected function recordLifecycleFailure(
+        string $operation,
+        string $failedStep,
+        array $completedSteps,
+        \Throwable $exception,
+        bool $enabled
+    ): void {
+        Log::error("Module {$operation} failed.", [
+            'module' => $this->name,
+            'failed_step' => $failedStep,
+            'completed_steps' => $completedSteps,
+            'exception' => $exception,
+        ]);
+        report($exception);
 
-        // Update packages.php cache
-        $this->updatePackagesCache($enable);
+        try {
+            $status = $operation === 'enable' ? 'enable_failed' : 'disable_failed';
+            $this->persistModuleState($enabled, $status);
+            app(ModuleManager::class)->refreshEnabledModulesCache();
+        } catch (\Throwable $recoveryException) {
+            Log::critical("Unable to record failed module {$operation} state.", [
+                'module' => $this->name,
+                'failed_step' => $failedStep,
+                'exception' => $recoveryException,
+            ]);
+            report($recoveryException);
+        }
     }
-
-    protected function updatePackagesCache(bool $enable): void
-    {
-        $cachePath = base_path('bootstrap/cache/packages.php');
-        if (!File::exists($cachePath)) {
-            return;
-        }
-
-        $moduleNameLower = $this->getModuleNameLower();
-        $moduleNameStudly = $this->getModuleNameStudly();
-        $providerClass = "Modules\\{$moduleNameStudly}\\Providers\\{$moduleNameStudly}ServiceProvider";
-
-        $packages = require $cachePath;
-        
-        if ($enable) {
-            // Add module to packages cache
-            $packages["Modules/{$moduleNameLower}"] = [
-                'providers' => [$providerClass],
-            ];
-        } else {
-            // Remove module from packages cache
-            unset($packages["Modules/{$moduleNameLower}"]);
-        }
-
-        // Write back to cache file
-        $content = "<?php return " . var_export($packages, true) . ";\n";
-        File::put($cachePath, $content);
-    }
-} 
+}

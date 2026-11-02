@@ -45,7 +45,7 @@ class ModulePublishAssetsCommand extends Command
 
         $this->info("Publishing assets for module: {$moduleName}");
 
-        $sourcePath = base_path("Modules/{$moduleName}/Resources/assets");
+        $sourcePath = module_path($moduleName, 'Resources/assets');
         $destinationPath = public_path("Modules/" . strtolower($moduleName));
 
         if ($debug) {
@@ -54,11 +54,11 @@ class ModulePublishAssetsCommand extends Command
 
         // Check for alternative asset paths
         $alternativePaths = [
-            base_path("Modules/{$moduleName}/Resources/assets/"),
-            base_path("Modules/{$moduleName}/resources/assets"),
-            base_path("Modules/{$moduleName}/Assets"),
-            base_path("Modules/{$moduleName}/assets"),
-            base_path("Modules/{$moduleName}/public"),
+            module_path($moduleName, 'Resources/assets/'),
+            module_path($moduleName, 'resources/assets'),
+            module_path($moduleName, 'Assets'),
+            module_path($moduleName, 'assets'),
+            module_path($moduleName, 'public'),
         ];
 
         $foundPath = $this->findAssetsPath($alternativePaths);
@@ -111,13 +111,13 @@ class ModulePublishAssetsCommand extends Command
     private function showDebugInfo($moduleName, $sourcePath, $destinationPath)
     {
         $this->line("Debug Information:");
-        $this->line("- Module base path: " . base_path("Modules/{$moduleName}"));
+        $this->line("- Module base path: " . module_path($moduleName));
         $this->line("- Source path: {$sourcePath}");
         $this->line("- Destination path: {$destinationPath}");
         $this->line("- Source exists: " . (File::exists($sourcePath) ? 'YES' : 'NO'));
         
         // Show what directories exist in the module
-        $moduleBasePath = base_path("Modules/{$moduleName}");
+        $moduleBasePath = module_path($moduleName);
         if (File::exists($moduleBasePath)) {
             $this->line("- Module directory exists");
             $directories = File::directories($moduleBasePath);

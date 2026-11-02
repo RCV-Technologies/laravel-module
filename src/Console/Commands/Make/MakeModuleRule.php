@@ -28,7 +28,7 @@ class MakeModuleRule extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $ruleParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$module}/src/Rules" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($module, 'src/Rules') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Rules" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

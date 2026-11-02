@@ -35,14 +35,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Module Dependencies
+    | Required Modules
     |--------------------------------------------------------------------------
     |
-    | Here you may define all of the dependencies for the {{ module_name }} module.
+    | Here you may list module names that {{ module_name }} requires.
     |
     */
 
-    'dependencies' => [
+    'dependents' => [
         // 'Core',
         // 'Auth',
     ],

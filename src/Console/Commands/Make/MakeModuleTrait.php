@@ -28,7 +28,7 @@ class MakeModuleTrait extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $traitParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$module}/src/Traits" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($module, 'src/Traits') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Traits" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 
