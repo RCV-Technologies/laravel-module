@@ -475,6 +475,8 @@ php artisan module:profile --duration=5                  # Run a simple module p
 
 - `module:make` - Create a new module
 - `module:enable` - Enable a module
+  - Usage: `php artisan module:enable {module} [--all]`
+  - Enable all modules: `php artisan module:enable --all`
 - `module:disable` - Disable a module
 - `module:marketplace list` - List all modules
 - `module:marketplace install` - Install a module
@@ -1457,4 +1459,3 @@ For open source projects, say how it is licensed.
 
 ## Project status
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
-
