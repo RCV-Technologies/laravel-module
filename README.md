@@ -1,4 +1,4 @@
-# 🚀 Laravel Core Module
+# 🚀 Laravel Core Module  
 
 <div align="center">
 
