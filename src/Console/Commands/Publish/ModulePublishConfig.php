@@ -17,7 +17,7 @@ class ModulePublishConfig extends Command
     {
         $module = $this->argument('module') ?? $this->ask('Please provide the module name');
 
-        $moduleConfigPath = base_path("Modules/{$module}/src/Config");
+        $moduleConfigPath = module_path($module, 'src/Config');
         $appConfigPath = config_path("{$module}");
 
         if (!File::exists($moduleConfigPath)) {

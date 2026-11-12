@@ -2,14 +2,18 @@
 
 namespace RCV\Core\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use RCV\Core\Console\Commands\Make\ModuleMiddlewareCommand;
+use RCV\Core\Console\Commands\ModuleBackupCommand;
+use RCV\Core\Console\Commands\ModuleDependencyGraphCommand;
+use RCV\Core\Console\Commands\ModuleHealthCheckCommand;
 use RCV\Core\Http\Middleware\ModuleMiddleware;
 use RCV\Core\Http\Middleware\ModuleMiddlewareManager;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 abstract class ModuleServiceProvider extends ServiceProvider
 {
@@ -37,7 +41,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
     /**
      * Create a new service provider instance.
      *
-     * @param  \Illuminate\Contracts\Foundation\Application|null  $app
+     * @param  Application|null  $app
      * @return void
      */
     public function __construct($app)
@@ -51,7 +55,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
             $this->moduleNameLower = strtolower($this->moduleName);
             $this->moduleNamespace = "Modules\\{$this->moduleName}";
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error in ModuleServiceProvider constructor: " . $e->getMessage());
+            Log::error('Error in ModuleServiceProvider constructor: '.$e->getMessage());
             throw $e;
         }
     }
@@ -68,7 +72,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
             $this->registerCommands();
             $this->registerMiddlewareManager();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error in ModuleServiceProvider register: " . $e->getMessage());
+            Log::error('Error in ModuleServiceProvider register: '.$e->getMessage());
             throw $e;
         }
     }
@@ -94,12 +98,12 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function registerConfig(): void
     {
         $moduleName = $this->getModuleName();
-        $configPath = base_path("Modules/{$moduleName}/src/Config/config.php");
+        $configPath = module_path($moduleName, 'src/Config/config.php');
 
         if (File::exists($configPath)) {
             $this->mergeConfigFrom($configPath, strtolower($moduleName));
             $this->publishes([
-                $configPath => config_path(strtolower($moduleName) . '.php'),
+                $configPath => config_path(strtolower($moduleName).'.php'),
             ], 'config');
         }
     }
@@ -114,13 +118,13 @@ abstract class ModuleServiceProvider extends ServiceProvider
 
         if (File::exists($configPath)) {
             $this->publishes([
-                $configPath => config_path(strtolower($moduleName) . '.php'),
+                $configPath => config_path(strtolower($moduleName).'.php'),
             ], 'config');
         }
 
         $this->publishes([
-            __DIR__ . '/../Config/marketplace.php' => config_path('marketplace.php'),
-            __DIR__ . '/../Config/middleware.php' => config_path('middleware.php'),
+            __DIR__.'/../Config/marketplace.php' => config_path('marketplace.php'),
+            __DIR__.'/../Config/middleware.php' => config_path('middleware.php'),
         ], 'module-config');
     }
 
@@ -134,7 +138,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
 
         if (File::exists($assetsPath)) {
             $this->publishes([
-                $assetsPath => public_path('Modules/' . strtolower($moduleName)),
+                $assetsPath => public_path('Modules/'.strtolower($moduleName)),
             ], 'assets');
         }
     }
@@ -144,42 +148,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
      */
     protected function registerMigrations(): void
     {
-        $moduleName = $this->getModuleName();
         $migrationsPath = $this->getMigrationsPath();
 
         if (File::exists($migrationsPath)) {
-            // Register migrations with Laravel
             $this->loadMigrationsFrom($migrationsPath);
-
-            // Get all migration files
-            $migrations = File::glob($migrationsPath . '/*.php');
-            $migrationNames = array_map(function($file) {
-                return pathinfo($file, PATHINFO_FILENAME);
-            }, $migrations);
-
-            // Update module state with migrations
-            $moduleState = DB::table('module_states')
-                ->where('name', $moduleName)
-                ->first();
-
-            if ($moduleState) {
-                DB::table('module_states')
-                    ->where('name', $moduleName)
-                    ->update([
-                        'migrations' => json_encode($migrationNames),
-                        'updated_at' => now()
-                    ]);
-            }
-
-            // Ensure migrations table exists
-            if (!Schema::hasTable('migrations')) {
-                Schema::create('migrations', function ($table) {
-                    $table->id();
-                    $table->string('migration');
-                    $table->integer('batch');
-                    $table->timestamps();
-                });
-            }
         }
     }
 
@@ -189,10 +161,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         $moduleName = $this->getModuleName();
-        $webRoutePath = realpath(base_path("Modules/{$moduleName}/src/Routes/web.php"));
-        $apiRoutePath = realpath(base_path("Modules/{$moduleName}/src/Routes/api.php"));
-        $webRoutePath = realpath(base_path("Modules/{$moduleName}/src/Routes/web.php"));
-        $apiRoutePath = realpath(base_path("Modules/{$moduleName}/src/Routes/api.php"));
+        $webRoutePath = realpath(module_path($moduleName, 'src/Routes/web.php'));
+        $apiRoutePath = realpath(module_path($moduleName, 'src/Routes/api.php'));
+        $webRoutePath = realpath(module_path($moduleName, 'src/Routes/web.php'));
+        $apiRoutePath = realpath(module_path($moduleName, 'src/Routes/api.php'));
 
         if ($webRoutePath && File::exists($webRoutePath)) {
             Route::middleware('web')
@@ -216,7 +188,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
         if (File::exists($viewsPath)) {
             $this->loadViewsFrom($viewsPath, $this->moduleNameLower);
             $this->publishes([
-                $viewsPath => resource_path('views/Modules/' . $this->moduleNameLower),
+                $viewsPath => resource_path('views/Modules/'.$this->moduleNameLower),
             ], 'views');
         }
     }
@@ -232,8 +204,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getMigrationsPath(): string
     {
         $moduleName = $this->getModuleName();
-        return base_path("Modules/{$moduleName}/src/Database/Migrations");
-        return base_path("Modules/{$moduleName}/src/Database/Migrations");
+
+        return module_path($moduleName, 'src/Database/Migrations');
+
+        return module_path($moduleName, 'src/Database/Migrations');
     }
 
     /**
@@ -242,8 +216,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getViewsPath(): string
     {
         $moduleName = $this->getModuleName();
-        return base_path("Modules/{$moduleName}/src/Resources/views");
-        return base_path("Modules/{$moduleName}/src/Resources/views");
+
+        return module_path($moduleName, 'src/Resources/views');
+
+        return module_path($moduleName, 'src/Resources/views');
     }
 
     /**
@@ -252,8 +228,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getConfigPath(): string
     {
         $moduleName = $this->getModuleName();
-        return base_path("Modules/{$moduleName}/src/Config/config.php");
-        return base_path("Modules/{$moduleName}/src/Config/config.php");
+
+        return module_path($moduleName, 'src/Config/config.php');
+
+        return module_path($moduleName, 'src/Config/config.php');
     }
 
     /**
@@ -262,8 +240,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getAssetsPath(): string
     {
         $moduleName = $this->getModuleName();
-        return base_path("Modules/{$moduleName}/src/Resources/assets");
-        return base_path("Modules/{$moduleName}/src/Resources/assets");
+
+        return module_path($moduleName, 'src/Resources/assets');
+
+        return module_path($moduleName, 'src/Resources/assets');
     }
 
     protected function registerMiddlewareManager()
@@ -281,10 +261,10 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function registerCommands(): void
     {
         $this->commands([
-            \RCV\Core\Console\Commands\ModuleHealthCheckCommand::class,
-            \RCV\Core\Console\Commands\ModuleDependencyGraphCommand::class,
-            \RCV\Core\Console\Commands\ModuleBackupCommand::class,
-            \RCV\Core\Console\Commands\Make\ModuleMiddlewareCommand::class,
+            ModuleHealthCheckCommand::class,
+            ModuleDependencyGraphCommand::class,
+            ModuleBackupCommand::class,
+            ModuleMiddlewareCommand::class,
         ]);
     }
 }

@@ -29,7 +29,7 @@ class ModuleMakeExceptionCommand extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $exceptionParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$modulePath}/src/Exceptions" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($modulePath, 'src/Exceptions') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Exceptions" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

@@ -3,13 +3,16 @@
 namespace RCV\Core\Console\Commands\Database\Migrations;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
+use RCV\Core\Services\CacheManager;
+use RCV\Core\Services\ModuleManager;
 
 class ModuleMigrateFresh extends Command
 {
     protected $signature = 'module:migrate-fresh';
+
     protected $description = 'Force drop all tables and re-run all module migrations';
 
     public function handle()
@@ -51,12 +54,9 @@ class ModuleMigrateFresh extends Command
         ]);
         $this->info(Artisan::output());
 
-        // Clear caches after all migrations are completed
-        $this->info('🧹 Clearing all caches...');
-        Artisan::call('cache:clear');
-        Artisan::call('config:clear');
-        Artisan::call('route:clear');
-        Artisan::call('view:clear');
+        $this->info('🧹 Invalidating RCV Core cache entries...');
+        app(CacheManager::class)->invalidateAll();
+        app(ModuleManager::class)->refreshEnabledModulesCache();
 
         $this->info('✅ Module migrations completed successfully.');
     }

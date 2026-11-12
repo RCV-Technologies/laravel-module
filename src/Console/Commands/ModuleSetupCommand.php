@@ -4,6 +4,7 @@ namespace RCV\Core\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModuleSetupCommand extends Command
 {
@@ -13,7 +14,12 @@ class ModuleSetupCommand extends Command
     public function handle()
     {
         $name = $this->argument('name');
-        $modulePath = base_path("Modules/{$name}");
+        if (!ModuleNameValidator::isValid($name)) {
+            $this->error('Invalid module name. Use letters, numbers, hyphens, and underscores; start with a letter.');
+            return 1;
+        }
+
+        $modulePath = module_path($name);
 
         if (File::exists($modulePath)) {
             $this->error("Module '{$name}' already exists!");

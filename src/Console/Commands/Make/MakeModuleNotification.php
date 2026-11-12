@@ -26,7 +26,7 @@ class MakeModuleNotification extends Command
         $subNamespace = implode('\\', array_map([Str::class, 'studly'], $parts));
 
         // --- Paths & Namespace ---
-        $moduleBasePath = base_path("Modules/{$module}");
+        $moduleBasePath = module_path($module);
         if (!File::exists($moduleBasePath)) {
             $this->error("Module '{$module}' does not exist.");
             return Command::FAILURE;

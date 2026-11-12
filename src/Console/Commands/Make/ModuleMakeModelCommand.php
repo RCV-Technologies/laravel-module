@@ -38,7 +38,7 @@ class ModuleMakeModelCommand extends Command
         $module = $this->getModuleName();
 
         // Ensure module exists
-        if (!File::exists(base_path("Modules/{$module}"))) {
+        if (!File::exists(module_path($module))) {
             $this->error("Module [{$module}] does not exist.");
             return 1;
         }
@@ -49,7 +49,7 @@ class ModuleMakeModelCommand extends Command
         $subDir = implode('/', $nameParts);
 
         // Create model directory if it doesn't exist
-        $modelBasePath = base_path("Modules/{$module}/src/Models");
+        $modelBasePath = module_path($module, 'src/Models');
         $modelPath = $subDir ? "{$modelBasePath}/{$subDir}" : $modelBasePath;
 
         if (!File::exists($modelPath)) {

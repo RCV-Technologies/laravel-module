@@ -75,7 +75,7 @@ class MakeChannel extends Command
         $subPath = trim(dirname($nameInput), '.');
 
         // Always under src/Channels
-        $directory = base_path("Modules/{$module}/src/Channels" . ($subPath ? '/' . $subPath : ''));
+        $directory = module_path($module, 'src/Channels') . ($subPath ? '/' . $subPath : '');
 
         return "{$directory}/{$className}.php";
     }

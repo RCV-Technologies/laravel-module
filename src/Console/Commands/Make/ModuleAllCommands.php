@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\Artisan;
 class ModuleAllCommands extends Command
 {
     protected $signature = 'module:commands';
+
     protected $description = 'Display a table of module commands and allow selection';
 
     public const COLOR = '<fg=#684df4;options=bold>';
 
     protected array $makeCommandDescriptions = [
         'module:actions' => 'Show module actions.',
-        'module:autoload' => 'Rebuild the autoload files.',
+        'module:autoload' => 'Register enabled modules for the current process.',
         'module:commands' => 'List all module commands.',
         'module:debug' => 'Debug module setup.',
         'module:disable' => 'Disable a module.',
@@ -91,15 +92,15 @@ class ModuleAllCommands extends Command
             'module:enable' => ['module'],
             'module:remove' => ['module'],
             'module:use' => ['module'],
-            'module:model-show'=> ['module'],
+            'module:model-show' => ['module'],
             'module:prune' => ['module'],
             // 'module:lang'=> ['module'],
-            'module:seed'=> ['module'], 
+            'module:seed' => ['module'],
             // 'module:publish-translation'=> ['module'],
-            'module:publish-migration'=> ['module'],  
-            'module:publish-config'=> ['module'],
-            'module:make-component-view'=> ['module', 'name'],
-            'module:migrate-one'=> ['migration_name', 'module_name'],
+            'module:publish-migration' => ['module'],
+            'module:publish-config' => ['module'],
+            'module:make-component-view' => ['module', 'name'],
+            'module:migrate-one' => ['migration_name', 'module_name'],
             'module:marketplace' => ['action', 'module'],
             'module:make-action' => ['name', 'module'],
             'module:make-cast' => ['name', 'module'],
@@ -116,7 +117,7 @@ class ModuleAllCommands extends Command
             'module:make-helper' => ['name', 'module'],
             'module:make-interface' => ['name', 'module'],
             'module:make-job' => ['name', 'module'],
-            'module:make-listener' => ['name', 'module','event'],
+            'module:make-listener' => ['name', 'module', 'event'],
             'module:make-mail' => ['name', 'module'],
             'module:make-migration' => ['name', 'module'],
             'module:make-model' => ['name', 'module'],
@@ -175,30 +176,30 @@ class ModuleAllCommands extends Command
             ['Number' => 5, 'Categories' => 'All Commands'],
         ];
 
-        $this->table([self::COLOR . 'No', self::COLOR . 'Categories'], $categories);
+        $this->table([self::COLOR.'No', self::COLOR.'Categories'], $categories);
         $this->newLine();
 
-        $choice = (int) $this->ask(self::COLOR . '👉 Enter a number to view its commands');
+        $choice = (int) $this->ask(self::COLOR.'👉 Enter a number to view its commands');
 
         match ($choice) {
-            1 => $this->handleGroup(self::COLOR . 'Actions Commands', [
-                'module:check-updates','list:commands','module:disable',
-                'module:enable','module:marketplace','module:prune','module:model-show',
+            1 => $this->handleGroup(self::COLOR.'Actions Commands', [
+                'module:check-updates', 'list:commands', 'module:disable',
+                'module:enable', 'module:marketplace', 'module:prune', 'module:model-show',
             ]),
 
             2 => $this->handleDatabaseSubMenu(),
-            3 => $this->handleGroup(self::COLOR . 'Make Commands', ['module:make']),
-            4 => $this->handleGroup(self::COLOR . 'Publish Commands', ['module:publish']),
-            5 => $this->handleGroup(self::COLOR . 'All Module Commands', ['module:']),
+            3 => $this->handleGroup(self::COLOR.'Make Commands', ['module:make']),
+            4 => $this->handleGroup(self::COLOR.'Publish Commands', ['module:publish']),
+            5 => $this->handleGroup(self::COLOR.'All Module Commands', ['module:']),
             6 => $this->handleMarketplaceMenu(),
-            default => $this->error(self::COLOR . 'Invalid selection.'),
+            default => $this->error(self::COLOR.'Invalid selection.'),
         };
     }
 
     protected function handleMarketplaceMenu()
     {
-        $this->info(self::COLOR . 'Marketplace Commands');
-        
+        $this->info(self::COLOR.'Marketplace Commands');
+
         $actions = [
             ['Number' => 1, 'Action' => 'list', 'Description' => 'List available modules'],
             ['Number' => 2, 'Action' => 'install', 'Description' => 'Install one or more modules'],
@@ -208,23 +209,24 @@ class ModuleAllCommands extends Command
         ];
 
         $this->table(
-            [self::COLOR . 'No', self::COLOR . 'Action', self::COLOR . 'Description'],
+            [self::COLOR.'No', self::COLOR.'Action', self::COLOR.'Description'],
             $actions
         );
         $this->newLine();
 
-        $choice = (int) $this->ask(self::COLOR . '👉 Select marketplace action');
+        $choice = (int) $this->ask(self::COLOR.'👉 Select marketplace action');
 
         $actionMap = [
             1 => 'list',
             2 => 'install',
             3 => 'remove',
             4 => 'update',
-            5 => 'cleanup'
+            5 => 'cleanup',
         ];
 
-        if (!isset($actionMap[$choice])) {
-            $this->error(self::COLOR . 'Invalid selection.');
+        if (! isset($actionMap[$choice])) {
+            $this->error(self::COLOR.'Invalid selection.');
+
             return;
         }
 
@@ -238,15 +240,15 @@ class ModuleAllCommands extends Command
 
         // For actions that require module names
         if (in_array($action, ['install', 'remove', 'update'])) {
-            $names = $this->ask(self::COLOR . '📦 Enter module name(s) (comma-separated for multiple)');
-            if (!empty($names)) {
+            $names = $this->ask(self::COLOR.'📦 Enter module name(s) (comma-separated for multiple)');
+            if (! empty($names)) {
                 $moduleNames = array_map('trim', explode(',', $names));
                 $args['module'] = $moduleNames;
             }
         }
 
         // Ask for force option
-        if ($this->confirm(self::COLOR . '💪 Use --force option?', false)) {
+        if ($this->confirm(self::COLOR.'💪 Use --force option?', false)) {
             $args['--force'] = true;
         }
 
@@ -259,7 +261,7 @@ class ModuleAllCommands extends Command
             $argsDisplay[] = '--force';
         }
 
-        $this->info(self::COLOR . "🚀 Running: php artisan module:marketplace " . implode(' ', $argsDisplay));
+        $this->info(self::COLOR.'🚀 Running: php artisan module:marketplace '.implode(' ', $argsDisplay));
         $this->newLine();
 
         Artisan::call('module:marketplace', $args);
@@ -275,17 +277,17 @@ class ModuleAllCommands extends Command
             ['Number' => 4, 'Categories' => 'All'],
         ];
 
-        $this->table([self::COLOR . 'No', self::COLOR . 'Type'], $groups);
+        $this->table([self::COLOR.'No', self::COLOR.'Type'], $groups);
         $this->newLine();
 
-        $subChoice = (int) $this->ask(self::COLOR . '👉 Select a database sub-category');
+        $subChoice = (int) $this->ask(self::COLOR.'👉 Select a database sub-category');
 
         match ($subChoice) {
-            1 => $this->handleGroup(self::COLOR . 'Migration Commands', ['module:migrate']),
-            2 => $this->handleGroup(self::COLOR . 'Seeder Commands', ['module:seed','module:seeder-list','module:make-seeder']),
-            3 => $this->handleGroup(self::COLOR . 'Factory Commands', ['module:make-factory']),
-            4 => $this->handleGroup(self::COLOR . 'All Database Commands', ['module:migrate', 'module:seed', 'module:factory']),
-            default => $this->error(self::COLOR . 'Invalid sub-category.'),
+            1 => $this->handleGroup(self::COLOR.'Migration Commands', ['module:migrate']),
+            2 => $this->handleGroup(self::COLOR.'Seeder Commands', ['module:seed', 'module:seeder-list', 'module:make-seeder']),
+            3 => $this->handleGroup(self::COLOR.'Factory Commands', ['module:make-factory']),
+            4 => $this->handleGroup(self::COLOR.'All Database Commands', ['module:migrate', 'module:seed', 'module:factory']),
+            default => $this->error(self::COLOR.'Invalid sub-category.'),
         };
     }
 
@@ -295,7 +297,8 @@ class ModuleAllCommands extends Command
         $commands = $this->getCommandsByPrefixes($prefixes);
 
         if (empty($commands)) {
-            $this->warn(self::COLOR . 'No commands found.');
+            $this->warn(self::COLOR.'No commands found.');
+
             return;
         }
 
@@ -303,27 +306,27 @@ class ModuleAllCommands extends Command
 
         foreach ($commands as $index => $command) {
             $indexed[] = [
-                self::COLOR . 'Index' => $index + 1,
-                self::COLOR . 'Command' => $command,
-                self::COLOR . 'Description' => $this->makeCommandDescriptions[$command] ?? '—',
+                self::COLOR.'Index' => $index + 1,
+                self::COLOR.'Command' => $command,
+                self::COLOR.'Description' => $this->makeCommandDescriptions[$command] ?? '—',
             ];
         }
 
         $this->table(
-            [self::COLOR . 'Index', self::COLOR . 'Command', self::COLOR . 'Description'],
+            [self::COLOR.'Index', self::COLOR.'Command', self::COLOR.'Description'],
             $indexed
         );
 
-        $input = (int) $this->ask(self::COLOR . '👉 Enter the index of the command to run (or 0 to skip)');
+        $input = (int) $this->ask(self::COLOR.'👉 Enter the index of the command to run (or 0 to skip)');
 
         if ($input > 0 && isset($commands[$input - 1])) {
             $selectedCommand = $commands[$input - 1];
             $this->runCommandWithArgs($selectedCommand);
         } elseif ($input !== 0) {
-            $this->error(self::COLOR . 'Invalid index.');
+            $this->error(self::COLOR.'Invalid index.');
         }
     }
-    
+
     protected function runCommandWithArgs(string $selectedCommand)
     {
         $commandArgsMap = $this->getCommandArgsMap();
@@ -332,11 +335,12 @@ class ModuleAllCommands extends Command
 
         // Check if command requires no arguments
         if (in_array($selectedCommand, $noArgsCommands)) {
-            $this->info(self::COLOR . "🚀 Running: php artisan $selectedCommand");
+            $this->info(self::COLOR."🚀 Running: php artisan $selectedCommand");
             $this->newLine();
 
             Artisan::call($selectedCommand);
             $this->line(Artisan::output());
+
             return;
         }
 
@@ -345,6 +349,7 @@ class ModuleAllCommands extends Command
             // Special handling for marketplace command
             if ($selectedCommand === 'module:marketplace') {
                 $this->runMarketplaceCommandFromGroup();
+
                 return;
             }
 
@@ -367,7 +372,7 @@ class ModuleAllCommands extends Command
                     default => "✏️  Enter value for <comment>$arg</comment>",
                 };
 
-                $value = $this->ask(self::COLOR . $question);
+                $value = $this->ask(self::COLOR.$question);
 
                 // Skip if value is empty and it's an optional parameter
                 if (empty($value) && $arg === 'event') {
@@ -393,27 +398,27 @@ class ModuleAllCommands extends Command
             $argsDisplay = [];
             foreach ($args as $key => $value) {
                 if (is_array($value)) {
-                    $argsDisplay[] = "$key=" . implode(',', $value);
+                    $argsDisplay[] = "$key=".implode(',', $value);
                 } else {
                     $argsDisplay[] = "$key=$value";
                 }
             }
 
-            $this->info(self::COLOR . "🚀 Running: php artisan $selectedCommand " . implode(' ', $argsDisplay));
+            $this->info(self::COLOR."🚀 Running: php artisan $selectedCommand ".implode(' ', $argsDisplay));
             $this->newLine();
 
             Artisan::call($selectedCommand, $args);
             $this->line(Artisan::output());
         } else {
             // For unmapped commands, try running without arguments first
-            $this->info(self::COLOR . "🚀 Running: php artisan $selectedCommand (no arguments required)");
+            $this->info(self::COLOR."🚀 Running: php artisan $selectedCommand (no arguments required)");
             $this->newLine();
 
             try {
                 Artisan::call($selectedCommand);
                 $this->line(Artisan::output());
             } catch (\Exception $e) {
-                $this->warn(self::COLOR . "⚠️  This command may require arguments. You'll need to run it manually.");
+                $this->warn(self::COLOR."⚠️  This command may require arguments. You'll need to run it manually.");
                 $this->error($e->getMessage());
             }
         }
@@ -421,21 +426,21 @@ class ModuleAllCommands extends Command
 
     protected function runMarketplaceCommandFromGroup()
     {
-        $action = $this->ask(self::COLOR . '🎯 Select action (list|install|remove|update|cleanup)');
-        
+        $action = $this->ask(self::COLOR.'🎯 Select action (list|install|remove|update|cleanup)');
+
         $args = ['action' => $action];
 
         // For actions that require module names
         if (in_array($action, ['install', 'remove', 'update'])) {
-            $names = $this->ask(self::COLOR . '📦 Enter module name(s) (comma-separated for multiple)');
-            if (!empty($names)) {
+            $names = $this->ask(self::COLOR.'📦 Enter module name(s) (comma-separated for multiple)');
+            if (! empty($names)) {
                 $moduleNames = array_map('trim', explode(',', $names));
                 $args['module'] = $moduleNames;
             }
         }
 
         // Ask for force option
-        if ($this->confirm(self::COLOR . '💪 Use --force option?', false)) {
+        if ($this->confirm(self::COLOR.'💪 Use --force option?', false)) {
             $args['--force'] = true;
         }
 
@@ -448,13 +453,13 @@ class ModuleAllCommands extends Command
             $argsDisplay[] = '--force';
         }
 
-        $this->info(self::COLOR . "🚀 Running: php artisan module:marketplace " . implode(' ', $argsDisplay));
+        $this->info(self::COLOR.'🚀 Running: php artisan module:marketplace '.implode(' ', $argsDisplay));
         $this->newLine();
 
         Artisan::call('module:marketplace', $args);
         $this->line(Artisan::output());
     }
-    
+
     protected function getCommandsByPrefixes(array $prefixes): array
     {
         $allCommands = Artisan::all();
@@ -470,6 +475,7 @@ class ModuleAllCommands extends Command
         }
 
         sort($matched);
+
         return $matched;
     }
 }

@@ -5,34 +5,88 @@ namespace RCV\Core\Console\Commands\Make;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModuleMakeCommand extends Command
 {
     protected $signature = 'module:make {name*}';
+
     protected $description = 'Create one or more new modules';
 
     protected $moduleName;
+
     protected $moduleNameStudly;
+
     protected $moduleNameLower;
+
     protected $modulePath;
 
     public function handle(): int
     {
-        foreach ($this->argument('name') as $name) {
+        $names = $this->argument('name');
+        $normalizedNames = [];
+        $registeredModules = $this->getRegisteredModuleNames();
+
+        foreach ($names as $name) {
+            if (! ModuleNameValidator::isValid($name)) {
+                $this->error("Invalid module name [{$name}]. Use letters, numbers, hyphens, and underscores; start with a letter.");
+
+                return self::FAILURE;
+            }
+
+            $moduleName = Str::studly($name);
+            $normalizedName = strtolower($moduleName);
+            if (isset($normalizedNames[$normalizedName])) {
+                $this->error("Module [{$moduleName}] was requested more than once.");
+
+                return self::FAILURE;
+            }
+
+            $normalizedNames[$normalizedName] = true;
+
+            if (File::isDirectory(module_path($moduleName))) {
+                $this->error("Module [{$moduleName}] already exists. Choose a different name.");
+
+                return self::FAILURE;
+            }
+
+            if (in_array($normalizedName, array_map('strtolower', $registeredModules), true)) {
+                $this->error("Module [{$moduleName}] is already registered.");
+
+                return self::FAILURE;
+            }
+        }
+
+        foreach ($names as $name) {
             $this->prepareModuleNames($name);
             $this->createModuleDirectories();
             $this->createModuleFiles();
-            $this->registerModuleInComposer();
             $this->createModuleState();
             $this->registerModuleInCoreConfig();
 
             $this->info("Module [{$this->moduleNameStudly}] created and registered successfully!");
+            $this->line("To enable this module, run: php artisan module:enable {$this->moduleNameStudly}");
         }
 
-        $this->info('Running composer dump-autoload...');
-        exec('composer dump-autoload');
-
         return 0;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function getRegisteredModuleNames(): array
+    {
+        $configPath = base_path('vendor/rcv/core/src/Config/config.php');
+        if (! File::exists($configPath)) {
+            return [];
+        }
+
+        $config = require $configPath;
+        $modules = $config['modules'] ?? [];
+
+        return is_array($modules)
+            ? array_values(array_filter($modules, 'is_string'))
+            : [];
     }
 
     protected function prepareModuleNames(string $name): void
@@ -40,7 +94,7 @@ class ModuleMakeCommand extends Command
         $this->moduleName = $name;
         $this->moduleNameStudly = Str::studly($name);
         $this->moduleNameLower = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
-        $this->modulePath = base_path("Modules/{$this->moduleNameStudly}");
+        $this->modulePath = module_path($this->moduleNameStudly);
     }
 
     protected function createModuleDirectories(): void
@@ -69,14 +123,14 @@ class ModuleMakeCommand extends Command
         ];
 
         foreach ($directories as $dir) {
-            $fullPath = $this->modulePath . ($dir ? "/$dir" : '');
+            $fullPath = $this->modulePath.($dir ? "/$dir" : '');
             File::ensureDirectoryExists($fullPath, 0755, true);
         }
     }
 
     protected function createModuleFiles(): void
     {
-        $stubBase = __DIR__ . '/../stubs';
+        $stubBase = __DIR__.'/../stubs';
         $targetBase = $this->modulePath;
         $srcBase = "$targetBase/src";
 
@@ -109,39 +163,14 @@ class ModuleMakeCommand extends Command
         }
     }
 
-    protected function registerModuleInComposer(): void
-    {
-        $composerPath = base_path('composer.json');
-
-        if (!File::exists($composerPath)) {
-            $this->error("composer.json not found!");
-            return;
-        }
-
-        $composer = json_decode(File::get($composerPath), true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->error("Invalid JSON in composer.json");
-            return;
-        }
-
-        $composer['autoload']['psr-4']["Modules\\{$this->moduleNameStudly}\\"] = "Modules/{$this->moduleNameStudly}/src/";
-        File::put($composerPath, json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
     protected function createModuleState(): void
     {
         $state = [
             'name' => $this->moduleNameStudly,
             'version' => '1.0.0',
-            'enabled' => false,
-            'last_enabled_at' => null,
-            'last_disabled_at' => null,
-            'applied_migrations' => [],
-            'failed_migrations' => [],
             'dependencies' => [],
             'dependents' => [],
-            'config' => []
+            'config' => [],
         ];
 
         File::put("{$this->modulePath}/module.json", json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -151,18 +180,19 @@ class ModuleMakeCommand extends Command
     {
         $configPath = base_path('vendor/rcv/core/src/Config/config.php');
 
-        if (!File::exists($configPath)) {
+        if (! File::exists($configPath)) {
             $this->error("Core config file not found: $configPath");
+
             return;
         }
 
         $config = require $configPath;
         $config['modules'] = $config['modules'] ?? [];
 
-        if (!in_array($this->moduleNameStudly, $config['modules'])) {
+        if (! in_array($this->moduleNameStudly, $config['modules'])) {
             $config['modules'][] = $this->moduleNameStudly;
         }
 
-        File::put($configPath, "<?php\n\nreturn " . var_export($config, true) . ";\n");
+        File::put($configPath, "<?php\n\nreturn ".var_export($config, true).";\n");
     }
 }

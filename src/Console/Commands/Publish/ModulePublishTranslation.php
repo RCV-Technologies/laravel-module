@@ -15,7 +15,7 @@ class ModulePublishTranslation extends Command
         $module = $this->argument('module');
         $debug = $this->option('debug');
         
-        $modulePath = base_path("Modules/{$module}");
+        $modulePath = module_path($module);
         $translationsPath = "{$modulePath}/Resources/lang";
 
         if ($debug) {

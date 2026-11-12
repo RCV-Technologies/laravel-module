@@ -4,7 +4,6 @@ namespace RCV\Core\Services;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ModuleBackupManager
@@ -22,7 +21,7 @@ class ModuleBackupManager
 
     public function createBackup(string $moduleName): string
     {
-        $modulePath = base_path("Modules/{$moduleName}");
+        $modulePath = module_path($moduleName);
         $timestamp = Carbon::now()->format('Y_m_d_His');
         $backupDir = "{$this->backupPath}/{$moduleName}_{$timestamp}";
 
@@ -47,8 +46,6 @@ class ModuleBackupManager
             // Rotate old backups
             $this->rotateBackups($moduleName);
 
-            Log::info("Created backup for module {$moduleName}", $metadata);
-
             return $backupDir;
         } catch (\Exception $e) {
             Log::error("Failed to create backup for module {$moduleName}: " . $e->getMessage());
@@ -65,7 +62,7 @@ class ModuleBackupManager
 
             $metadata = json_decode(File::get("{$backupPath}/backup_metadata.json"), true);
             $moduleName = $metadata['module'];
-            $modulePath = base_path("Modules/{$moduleName}");
+            $modulePath = module_path($moduleName);
 
             // Create a backup of current state before restore
             $this->createBackup($moduleName);
@@ -73,8 +70,6 @@ class ModuleBackupManager
             // Restore the backup
             File::deleteDirectory($modulePath);
             File::copyDirectory($backupPath, $modulePath);
-
-            Log::info("Restored backup for module {$moduleName}", $metadata);
 
             return true;
         } catch (\Exception $e) {
@@ -121,8 +116,6 @@ class ModuleBackupManager
             }
 
             File::deleteDirectory($backupPath);
-            Log::info("Deleted backup: {$backupPath}");
-
             return true;
         } catch (\Exception $e) {
             Log::error("Failed to delete backup {$backupPath}: " . $e->getMessage());
@@ -164,7 +157,7 @@ class ModuleBackupManager
 
     protected function getModuleVersion(string $moduleName): string
     {
-        $composerFile = base_path("Modules/{$moduleName}/composer.json");
+        $composerFile = module_path($moduleName, 'composer.json');
         if (File::exists($composerFile)) {
             $composer = json_decode(File::get($composerFile), true);
             return $composer['version'] ?? '1.0.0';

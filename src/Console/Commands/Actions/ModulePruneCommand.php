@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModulePruneCommand extends Command
 {
@@ -27,6 +28,11 @@ class ModulePruneCommand extends Command
             return 1;
         }
 
+        if (!ModuleNameValidator::isValid($module)) {
+            $this->error('Invalid module name. Use letters, numbers, hyphens, and underscores; start with a letter.');
+            return 1;
+        }
+
         // Retrieve options
         $paths = $this->option('path') ?: [];
         $only = $this->option('model');
@@ -36,7 +42,7 @@ class ModulePruneCommand extends Command
 
         $this->info("🔍 Scanning module: {$module}");
 
-        $modulePath = base_path("Modules/{$module}/src");
+        $modulePath = module_path($module, 'src');
         if (!File::exists($modulePath)) {
             $this->warn("⚠️ Module path not found: {$modulePath}");
             return 1;

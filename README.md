@@ -344,7 +344,6 @@ php artisan module:make {name}                    # Create new module
 # 🔧 Module State Management
 php artisan module:enable {name}                  # Enable specific module (auto-enables dependents)
 php artisan module:disable {name}                 # Disable specific module (checks for dependents)
-php artisan module:sync                           # Sync module states and dependencies
 
 # 📋 Module Information
 php artisan module:marketplace list               # List all modules with status
@@ -476,6 +475,8 @@ php artisan module:profile --duration=5                  # Run a simple module p
 
 - `module:make` - Create a new module
 - `module:enable` - Enable a module
+  - Usage: `php artisan module:enable {module} [--all]`
+  - Enable all modules: `php artisan module:enable --all`
 - `module:disable` - Disable a module
 - `module:marketplace list` - List all modules
 - `module:marketplace install` - Install a module
@@ -556,9 +557,8 @@ php artisan module:enable User
 php artisan module:disable Module1
 # Output: Error if User depends on Module1 (use --force to override)
 
-# Sync with dependency management
-php artisan module:sync --json-priority
-# Output: Installs/removes dependencies for all modules
+# Module enabled state is stored in the module_states database table.
+# Use module:enable or module:disable to change it.
 ```
 
 ### 🔤 Module Translation Check Command
@@ -1459,4 +1459,3 @@ For open source projects, say how it is licensed.
 
 ## Project status
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
-

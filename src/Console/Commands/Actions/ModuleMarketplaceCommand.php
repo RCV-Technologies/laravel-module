@@ -3,10 +3,11 @@
 namespace RCV\Core\Console\Commands\Actions;
 
 use Illuminate\Console\Command;
-use RCV\Core\Models\ModuleState;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Models\ModuleState;
 use RCV\Core\Services\MarketplaceService;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModuleMarketplaceCommand extends Command
 {
@@ -16,6 +17,7 @@ class ModuleMarketplaceCommand extends Command
         {--force : Force the action}';
 
     protected $description = 'Manage modules through the marketplace';
+
     protected $marketplaceService;
 
     public function __construct(MarketplaceService $marketplaceService)
@@ -30,31 +32,48 @@ class ModuleMarketplaceCommand extends Command
         $names = $this->argument('module') ?? [];
         $force = $this->option('force');
 
+        if (in_array($action, ['install', 'remove', 'update'], true)) {
+            foreach ($names as $name) {
+                if (! ModuleNameValidator::isValid($name)) {
+                    $this->error("Invalid module name [{$name}]. Use letters, numbers, hyphens, and underscores; start with a letter.");
+
+                    return 1;
+                }
+            }
+        }
+
         switch ($action) {
             case 'list':
                 return $this->listModules();
             case 'install':
                 if (empty($names)) {
                     $this->error('Please provide at least one module name to install.');
+
                     return 1;
                 }
+
                 return $this->installModules($names);
             case 'remove':
                 if (empty($names)) {
                     $this->error('Please provide at least one module name to remove.');
+
                     return 1;
                 }
+
                 return $this->removeModules($names, $force);
             case 'update':
                 if (empty($names)) {
                     $this->error('Please provide at least one module name to update.');
+
                     return 1;
                 }
+
                 return $this->updateModules($names);
             case 'cleanup':
                 return $this->cleanup();
             default:
                 $this->error("Unknown action: {$action}");
+
                 return 1;
         }
     }
@@ -66,6 +85,7 @@ class ModuleMarketplaceCommand extends Command
 
             if ($modules->isEmpty()) {
                 $this->info('No modules found.');
+
                 return 0;
             }
 
@@ -77,13 +97,14 @@ class ModuleMarketplaceCommand extends Command
                     $module->name,
                     $module->version,
                     $module->description,
-                    $module->enabled ? 'enabled' : 'disabled'
+                    $module->enabled ? 'enabled' : 'disabled',
                 ];
             }
 
             $this->table($headers, $rows);
         } catch (\Exception $e) {
             $this->error("Failed to list modules: {$e->getMessage()}");
+
             return 1;
         }
     }
@@ -93,10 +114,11 @@ class ModuleMarketplaceCommand extends Command
         $success = true;
         foreach ($names as $name) {
             $result = $this->installModule($name);
-            if (!$result) {
+            if (! $result) {
                 $success = false;
             }
         }
+
         return $success ? 0 : 1;
     }
 
@@ -108,17 +130,14 @@ class ModuleMarketplaceCommand extends Command
             $this->info("Enabling module [{$name}]...");
             $this->call('module:enable', ['module' => [$name]]);
 
-            $this->info('Running composer dump-autoload...');
-            $this->runComposerDumpAutoload();
-
             $this->info('Running migrations...');
-            $migrationsPath = base_path("Modules/{$name}/src/Database/Migrations");
-            $migrationsPath = base_path("Modules/{$name}/src/Database/Migrations");
+            $migrationsPath = module_path($name, 'src/Database/Migrations');
+            $migrationsPath = module_path($name, 'src/Database/Migrations');
             if (File::exists($migrationsPath)) {
-                $migrationFiles = File::glob($migrationsPath . '/*.php');
+                $migrationFiles = File::glob($migrationsPath.'/*.php');
                 foreach ($migrationFiles as $file) {
                     $migrationName = pathinfo($file, PATHINFO_FILENAME);
-                    if (!$this->migrationExists($migrationName)) {
+                    if (! $this->migrationExists($migrationName)) {
                         try {
                             $this->runMigration($file);
                         } catch (\Exception $e) {
@@ -131,9 +150,11 @@ class ModuleMarketplaceCommand extends Command
             }
 
             $this->info("Module [{$name}] installed successfully");
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to install module [{$name}]: " . $e->getMessage());
+            $this->error("Failed to install module [{$name}]: ".$e->getMessage());
+
             return false;
         }
     }
@@ -146,6 +167,7 @@ class ModuleMarketplaceCommand extends Command
                 $success = false;
             }
         }
+
         return $success ? 0 : 1;
     }
 
@@ -156,6 +178,7 @@ class ModuleMarketplaceCommand extends Command
 
             if ($moduleDetails['status'] !== 'enabled') {
                 $this->error("Module [{$name}] is not installed");
+
                 return 1;
             }
 
@@ -165,24 +188,23 @@ class ModuleMarketplaceCommand extends Command
             $this->call('module:disable', ['module' => [$name]]);
             $this->call('module:enable', ['module' => [$name]]);
 
-            // ✅ NEW: Run composer autoload + migrations again
-            $this->runComposerDumpAutoload();
-
-            $migrationsPath = base_path("Modules/{$name}/src/Database/Migrations");
+            $migrationsPath = module_path($name, 'src/Database/Migrations');
             if (File::exists($migrationsPath)) {
-                $migrationFiles = File::glob($migrationsPath . '/*.php');
+                $migrationFiles = File::glob($migrationsPath.'/*.php');
                 foreach ($migrationFiles as $file) {
                     $migrationName = pathinfo($file, PATHINFO_FILENAME);
-                    if (!$this->migrationExists($migrationName)) {
+                    if (! $this->migrationExists($migrationName)) {
                         $this->runMigration($file);
                     }
                 }
             }
 
             $this->info("Module [{$name}] updated successfully");
+
             return 0;
         } catch (\Exception $e) {
             $this->error("Failed to update module: {$e->getMessage()}");
+
             return 1;
         }
     }
@@ -195,6 +217,7 @@ class ModuleMarketplaceCommand extends Command
                 $success = false;
             }
         }
+
         return $success ? 0 : 1;
     }
 
@@ -208,25 +231,23 @@ class ModuleMarketplaceCommand extends Command
                 $this->call('module:disable', ['module' => [$name], '--remove' => true]);
             }
 
-            $modulePath = base_path("Modules/{$name}");
-            $modulePath = base_path("Modules/{$name}");
+            $modulePath = module_path($name);
+            $modulePath = module_path($name);
             if (File::exists($modulePath)) {
                 File::deleteDirectory($modulePath);
             }
 
             $this->removeFromModulesConfig($name);
-            $this->removeFromComposer($name);
             $this->removeFromCoreConfig($name);
-
-            $this->info('Running composer dump-autoload...');
-            exec('composer dump-autoload -o');
 
             DB::table('module_states')->where('name', $name)->delete();
 
             $this->info("Module [{$name}] has been completely removed from the system");
+
             return 0;
         } catch (\Exception $e) {
             $this->error("Failed to remove module: {$e->getMessage()}");
+
             return 1;
         }
     }
@@ -250,11 +271,6 @@ class ModuleMarketplaceCommand extends Command
         }
     }
 
-    protected function runComposerDumpAutoload()
-    {
-        exec('composer dump-autoload');
-    }
-
     protected function removeFromModulesConfig($name)
     {
         $configPath = base_path('Modules/Core/src/Config/modules.php');
@@ -266,29 +282,9 @@ class ModuleMarketplaceCommand extends Command
                 $config['modules'] = array_values(array_filter($config['modules'], function ($provider) use ($providerClass) {
                     return $provider !== $providerClass;
                 }));
-                $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+                $content = "<?php\n\nreturn ".var_export($config, true).";\n";
                 File::put($configPath, $content);
             }
-        }
-    }
-
-    protected function removeFromComposer($name)
-    {
-        $composerPath = base_path('composer.json');
-        if (File::exists($composerPath)) {
-            $composer = json_decode(File::get($composerPath), true);
-
-            if (isset($composer['autoload']['psr-4']["Modules\\{$name}\\"])) {
-                unset($composer['autoload']['psr-4']["Modules\\{$name}\\"]);
-            }
-
-            if (isset($composer['repositories'])) {
-                $composer['repositories'] = array_values(array_filter($composer['repositories'], function ($repo) use ($name) {
-                    return !isset($repo['url']) || $repo['url'] !== "Modules/{$name}";
-                }));
-            }
-
-            File::put($composerPath, json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
@@ -305,7 +301,7 @@ class ModuleMarketplaceCommand extends Command
                 }));
             }
 
-            $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+            $content = "<?php\n\nreturn ".var_export($config, true).";\n";
             File::put($configPath, $content);
         }
     }
@@ -321,7 +317,7 @@ class ModuleMarketplaceCommand extends Command
             $removedCount = 0;
 
             foreach ($states as $state) {
-                if (!File::exists("{$modulePath}/{$state->name}")) {
+                if (! File::exists("{$modulePath}/{$state->name}")) {
                     $this->info("Removing orphaned state for module [{$state->name}]...");
                     $state->delete();
                     $removedCount++;
@@ -335,6 +331,7 @@ class ModuleMarketplaceCommand extends Command
             }
         } catch (\Exception $e) {
             $this->error("Failed to cleanup module states: {$e->getMessage()}");
+
             return 1;
         }
     }

@@ -76,7 +76,7 @@ class ModuleMakeViewCommand extends Command
         // Convert dot notation to directory structure
         $viewPath = str_replace('.', '/', $view) . '.blade.php';
 
-        return base_path("Modules/{$module}/src/Resources/views/{$viewPath}");
+        return module_path($module, "src/Resources/views/{$viewPath}");
     }
 
     /**

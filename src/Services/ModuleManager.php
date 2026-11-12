@@ -2,71 +2,82 @@
 
 namespace RCV\Core\Services;
 
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use RCV\Core\Models\ModuleState;
 
 class ModuleManager
 {
     protected $modulePath;
-    protected $cacheKey = 'module_states';
+
+    protected string $cacheKey = 'rcv_enabled_modules';
+
+    public function getEnabledModulesCacheKey(): string
+    {
+        return hash('sha256', $this->cacheKey);
+    }
+
     protected $enabledModules = [];
-    
+
+    /** @var array<string, array|null> */
+    protected array $moduleManifests = [];
+
+    protected ?array $availableModulesCache = null;
+
     public function __construct()
     {
         $this->modulePath = base_path('Modules');
         $this->initialize();
     }
-    
-    public function initialize()
+
+    public function initialize(): void
     {
-        if (!File::isDirectory($this->modulePath)) {
+        if (! File::isDirectory($this->modulePath)) {
             File::makeDirectory($this->modulePath, 0755, true);
         }
-        
+
         $this->loadModuleStates();
     }
-    
-    protected function loadModuleStates()
+
+    protected function loadModuleStates(?array $enabledModuleNames = null): void
     {
         $modules = $this->getAvailableModules();
         $states = [];
-        
+        $enabledModuleNames ??= $this->getEnabledModuleNames();
+        $enabledModules = array_fill_keys($enabledModuleNames, true);
+
         foreach ($modules as $module) {
-            $moduleJsonPath = "{$this->modulePath}/{$module}/module.json";
-            if (File::exists($moduleJsonPath)) {
-                $config = json_decode(File::get($moduleJsonPath), true);
-                $states[$module] = [
-                    'enabled' => isset($config['enabled']) ? (bool)$config['enabled'] : false,
-                    'dependencies' => $config['dependencies'] ?? [],
-                    'loaded' => false
-                ];
+            $config = $this->getModuleManifest($module);
+            if ($config === null) {
+                continue;
             }
+
+            $states[$module] = [
+                'enabled' => isset($enabledModules[$module]),
+                'dependents' => is_array($config) ? ($config['dependents'] ?? []) : [],
+                'loaded' => false,
+            ];
         }
-        
-        if ($this->isCacheAvailable()) {
-            Cache::put($this->cacheKey, $states, 3600);
-        }
+
         $this->enabledModules = $states;
     }
-    
+
     /**
      * Get all available modules.
-     *
-     * @return array
      */
     public function getAvailableModules(): array
     {
-        // Return actual directory names to ensure correct file paths
+        if ($this->availableModulesCache !== null) {
+            return $this->availableModulesCache;
+        }
+
         return $this->scanAvailableModules();
     }
-    
+
     /**
      * Scan for available modules.
-     *
-     * @return array
      */
     protected function scanAvailableModules(): array
     {
@@ -83,255 +94,339 @@ class ModuleManager
             }
         }
 
-        return $modules;
+        return $this->availableModulesCache = array_values(array_unique($modules));
     }
-    
+
     /**
      * Get enabled modules.
-     *
-     * @return array
      */
     public function getEnabledModules(): array
     {
-        // Return actual directory names to ensure correct file paths
-        return $this->scanEnabledModules();
+        $enabledModules = array_fill_keys($this->getEnabledModuleNames(), true);
+
+        return array_values(array_filter(
+            $this->getAvailableModules(),
+            static fn (string $moduleName): bool => isset($enabledModules[$moduleName])
+        ));
     }
-    
+
+    /**
+     * Get enabled module names from cache, loading them from the database on a cache miss.
+     *
+     * @return array<int, string>
+     */
+    protected function getEnabledModuleNames(): array
+    {
+        if (app()->bound('cache')) {
+            try {
+                $enabledModuleNames = Cache::rememberForever(
+                    $this->getEnabledModulesCacheKey(),
+                    fn (): array => DB::table('module_states')->where('enabled', true)->pluck('name')->all()
+                );
+
+                if (is_array($enabledModuleNames)) {
+                    return array_values(array_filter($enabledModuleNames, 'is_string'));
+                }
+            } catch (\Throwable $exception) {
+                Log::debug('Unable to load enabled modules from cache.', ['exception' => $exception]);
+            }
+        }
+
+        try {
+            return DB::table('module_states')->where('enabled', true)->pluck('name')->all();
+        } catch (\Throwable $exception) {
+            Log::debug('Unable to load enabled modules from the database.', ['exception' => $exception]);
+
+            return [];
+        }
+    }
+
     /**
      * Scan for enabled modules.
-     *
-     * @return array
      */
     protected function scanEnabledModules(): array
     {
-        $modules = [];
-        $availableModules = $this->getAvailableModules();
-
-        foreach ($availableModules as $module) {
-            if ($this->isModuleEnabled($module)) {
-                $modules[] = $module;
-            }
-        }
-
-        return $modules;
+        return $this->getEnabledModules();
     }
-    
+
     /**
      * Check if cache is available.
-     *
-     * @return bool
      */
-    protected function isCacheAvailable(): bool
-    {
-        try {
-            return app()->bound('cache') && app()->make('cache');
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-    
     /**
      * Check if a module is enabled.
-     *
-     * @param string $moduleName
-     * @return bool
      */
     public function isModuleEnabled(string $moduleName): bool
     {
-        // First check database for module state
-        try {
-            $dbState = \Illuminate\Support\Facades\DB::table('module_states')
-                ->where('name', $moduleName)
-                ->first();
-            
-            if ($dbState) {
-                return (bool)$dbState->enabled;
-            }
-        } catch (\Exception $e) {
-            // If database check fails, fall back to JSON
-            Log::debug("Database check failed for module {$moduleName}, falling back to JSON: " . $e->getMessage());
+        if (! ModuleNameValidator::isValid($moduleName)) {
+            return false;
         }
-        
-        // Fall back to JSON file check
-        $moduleState = $this->getModuleState($moduleName);
-        return $moduleState['enabled'] ?? false;
+
+        return in_array($moduleName, $this->getEnabledModuleNames(), true);
     }
-    
+
     /**
      * Get module state.
-     *
-     * @param string $moduleName
-     * @return array
      */
     public function getModuleState(string $moduleName): array
     {
-        $moduleJsonPath = base_path("Modules/{$moduleName}/module.json");
-        
-        if (File::exists($moduleJsonPath)) {
-            $config = json_decode(File::get($moduleJsonPath), true);
-            return [
-                'enabled' => isset($config['enabled']) ? (bool)$config['enabled'] : false,
-                'dependencies' => $config['dependencies'] ?? [],
-                'loaded' => false
-            ];
+        if (! ModuleNameValidator::isValid($moduleName)) {
+            return [];
         }
 
-        return [];
+        try {
+            $state = DB::table('module_states')->where('name', $moduleName)->first();
+        } catch (\Throwable $exception) {
+            Log::debug("Database check failed for module {$moduleName}.", ['exception' => $exception]);
+
+            return [];
+        }
+
+        if (! $state) {
+            return [];
+        }
+
+        $config = $this->getModuleManifest($moduleName) ?? [];
+
+        return [
+            ...((array) $state),
+            'enabled' => (bool) $state->enabled,
+            'dependents' => is_array($config) ? ($config['dependents'] ?? []) : [],
+            'loaded' => false,
+        ];
     }
-    
+
     /**
      * Enable a module.
-     *
-     * @param string $moduleName
-     * @return bool
      */
     public function enableModule(string $moduleName): bool
     {
-        if (!$this->isValidModule($moduleName)) {
+        if (! $this->isValidModule($moduleName)) {
             return false;
         }
 
-        $moduleState = $this->getModuleState($moduleName);
-        $moduleState['enabled'] = true;
-        $moduleState['last_enabled_at'] = now()->toIso8601String();
-
-        $this->updateModuleState($moduleName, $moduleState);
-        $this->clearModuleCache();
+        $this->persistModuleState($moduleName, true);
+        $this->refreshEnabledModulesCache();
 
         return true;
     }
-    
+
     /**
      * Disable a module.
-     *
-     * @param string $moduleName
-     * @return bool
      */
     public function disableModule(string $moduleName): bool
     {
-        if (!$this->isValidModule($moduleName)) {
+        if (! $this->isValidModule($moduleName)) {
             return false;
         }
 
-        $moduleState = $this->getModuleState($moduleName);
-        $moduleState['enabled'] = false;
-        $moduleState['last_disabled_at'] = now()->toIso8601String();
-
-        $this->updateModuleState($moduleName, $moduleState);
-        $this->clearModuleCache();
+        $this->persistModuleState($moduleName, false);
+        $this->refreshEnabledModulesCache();
 
         return true;
     }
-    
+
     /**
      * Update module state.
      *
-     * @param string $moduleName
-     * @param array $state
-     * @return void
+     * @param  array  $state
      */
-    protected function updateModuleState(string $moduleName, array $state): void
+    protected function persistModuleState(string $moduleName, bool $enabled): void
     {
-        $moduleJsonPath = base_path("Modules/{$moduleName}/module.json");
-        File::put($moduleJsonPath, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $moduleMetadata = $this->getModuleManifest($moduleName) ?? [];
+        $state = ModuleState::firstOrNew(['name' => $moduleName]);
+        $state->version = is_array($moduleMetadata) ? ($moduleMetadata['version'] ?? $state->version ?? '1.0.0') : '1.0.0';
+        $state->description = is_array($moduleMetadata)
+            ? ($moduleMetadata['description'] ?? "{$moduleName} module")
+            : "{$moduleName} module";
+        $state->enabled = $enabled;
+        $state->status = $enabled ? 'enabled' : 'disabled';
+        $state->{$enabled ? 'last_enabled_at' : 'last_disabled_at'} = now();
+        $state->save();
     }
-    
+
     /**
      * Check if a module is valid.
-     *
-     * @param string $moduleName
-     * @return bool
      */
     protected function isValidModule(string $moduleName): bool
     {
-        $modulePath = base_path("Modules/{$moduleName}");
-        $moduleJsonPath = "{$modulePath}/module.json";
+        if (! ModuleNameValidator::isValid($moduleName)) {
+            return false;
+        }
+
+        $modulePath = module_path($moduleName);
         $providerPath = "{$modulePath}/src/Providers/{$moduleName}ServiceProvider.php";
 
         return File::exists($modulePath) &&
-               File::exists($moduleJsonPath) &&
+               $this->getModuleManifest($moduleName) !== null &&
                File::exists($providerPath);
     }
-    
+
+    protected function getModuleManifest(string $moduleName): ?array
+    {
+        if (array_key_exists($moduleName, $this->moduleManifests)) {
+            return $this->moduleManifests[$moduleName];
+        }
+
+        try {
+            return $this->moduleManifests[$moduleName] = ModuleManifestValidator::read(
+                $moduleName,
+                module_path($moduleName, 'module.json')
+            );
+        } catch (\InvalidArgumentException $exception) {
+            $this->moduleManifests[$moduleName] = null;
+            Log::warning($exception->getMessage());
+
+            return null;
+        }
+    }
+
     /**
      * Clear module cache.
-     *
-     * @return void
      */
-    protected function clearModuleCache(): void
+    public function refreshEnabledModulesCache(): void
     {
-        if ($this->isCacheAvailable()) {
-            Cache::forget('core.available_modules');
-            Cache::forget('core.enabled_modules');
+        try {
+            $this->availableModulesCache = null;
+            $this->moduleManifests = [];
+            $enabledModuleNames = DB::table('module_states')->where('enabled', true)->pluck('name')->all();
+
+            if (app()->bound('cache')) {
+                try {
+                    Cache::forever($this->getEnabledModulesCacheKey(), $enabledModuleNames);
+                } catch (\Throwable $exception) {
+                    Log::debug('Unable to write enabled modules to cache.', ['exception' => $exception]);
+                }
+            }
+
+            $this->loadModuleStates($enabledModuleNames);
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to refresh enabled module cache.', ['exception' => $exception]);
         }
     }
-    
+
     public function loadModules()
     {
-        $modules = $this->getAvailableModules();
         $loadedModules = [];
-        
-        foreach ($modules as $module) {
+
+        foreach ($this->getLoadableEnabledModules() as $module) {
             try {
-                if ($this->canLoadModule($module)) {
-                    $this->loadModule($module);
+                if ($this->loadModule($module)) {
                     $loadedModules[] = $module;
                 }
-            } catch (\Exception $e) {
-                Log::error("Failed to load module {$module}: " . $e->getMessage());
+            } catch (\Throwable $e) {
+                Log::error("Failed to load module {$module}: ".$e->getMessage());
             }
         }
-        
+
         return $loadedModules;
     }
-    
-    protected function canLoadModule($moduleName)
+
+    /**
+     * Return enabled modules in dependency order, skipping modules with invalid graphs.
+     *
+     * @return array<int, string>
+     */
+    public function getLoadableEnabledModules(): array
     {
-        if (!isset($this->enabledModules[$moduleName])) {
-            return false;
-        }
-        
-        $module = $this->enabledModules[$moduleName];
-        
-        if (!$module['enabled']) {
-            return false;
-        }
-        
-        foreach ($module['dependencies'] as $dependency) {
-            if (!isset($this->enabledModules[$dependency]) || 
-                !$this->enabledModules[$dependency]['enabled']) {
+        $enabledModules = array_keys(array_filter(
+            $this->enabledModules,
+            fn (array $module): bool => $module['enabled']
+        ));
+        $status = [];
+        $stack = [];
+        $loadOrder = [];
+
+        $visit = function (string $moduleName) use (&$visit, &$status, &$stack, &$loadOrder): bool {
+            if (($status[$moduleName] ?? null) === 'loaded') {
+                return true;
+            }
+
+            if (($status[$moduleName] ?? null) === 'invalid') {
                 return false;
             }
+
+            if (($status[$moduleName] ?? null) === 'visiting') {
+                $cycleStart = array_search($moduleName, $stack, true);
+                $cycle = array_slice($stack, $cycleStart === false ? 0 : $cycleStart);
+                $cycle[] = $moduleName;
+                foreach ($cycle as $cycleModule) {
+                    $status[$cycleModule] = 'invalid';
+                }
+                Log::error('Circular module dependency detected: '.implode(' -> ', $cycle));
+
+                return false;
+            }
+
+            $status[$moduleName] = 'visiting';
+            $stack[] = $moduleName;
+            $module = $this->enabledModules[$moduleName];
+
+            foreach ($module['dependents'] as $dependency) {
+                if (! isset($this->enabledModules[$dependency])) {
+                    Log::warning("Module [{$moduleName}] requires missing or invalid module [{$dependency}].");
+                    $status[$moduleName] = 'invalid';
+                    array_pop($stack);
+
+                    return false;
+                }
+
+                if (! $this->enabledModules[$dependency]['enabled']) {
+                    Log::warning("Module [{$moduleName}] requires disabled module [{$dependency}].");
+                    $status[$moduleName] = 'invalid';
+                    array_pop($stack);
+
+                    return false;
+                }
+
+                if (! $visit($dependency)) {
+                    $status[$moduleName] = 'invalid';
+                    array_pop($stack);
+
+                    return false;
+                }
+            }
+
+            array_pop($stack);
+            if (($status[$moduleName] ?? null) === 'invalid') {
+                return false;
+            }
+
+            $status[$moduleName] = 'loaded';
+            $loadOrder[] = $moduleName;
+
+            return true;
+        };
+
+        foreach ($enabledModules as $moduleName) {
+            $visit($moduleName);
         }
-        
-        return true;
+
+        return $loadOrder;
     }
-    
+
     protected function loadModule($moduleName)
     {
         $providerClass = "Modules\\{$moduleName}\\Providers\\{$moduleName}ServiceProvider";
-        
+
         if (class_exists($providerClass)) {
             try {
                 // Let Laravel's service container handle the instantiation
                 $instance = app()->resolveProvider($providerClass);
                 app()->register($instance);
                 $this->enabledModules[$moduleName]['loaded'] = true;
-                if ($this->isCacheAvailable()) {
-                    Cache::put($this->cacheKey, $this->enabledModules, 3600);
-                }
+
                 return true;
             } catch (\Exception $e) {
-                Log::error("Failed to load provider {$providerClass} for module {$moduleName}: " . $e->getMessage());
+                Log::error("Failed to load provider {$providerClass} for module {$moduleName}: ".$e->getMessage());
                 throw $e;
             }
         }
-        
+
         return false;
     }
-    
+
     public function getAllModuleStates()
     {
         return $this->enabledModules;
     }
-} 
+}

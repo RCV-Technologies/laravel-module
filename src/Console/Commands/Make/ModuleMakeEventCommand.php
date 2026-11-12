@@ -29,7 +29,7 @@ class ModuleMakeEventCommand extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $eventParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$modulePath}/src/Events" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($modulePath, 'src/Events') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Events" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

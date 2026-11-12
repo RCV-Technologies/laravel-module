@@ -2,18 +2,20 @@
 
 namespace RCV\Core\Services;
 
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\ServiceProvider;
 use RCV\Core\Models\ModuleState;
-use RCV\Core\Services\MarketplaceService;
 
 class ModuleHealthCheck
 {
     protected $marketplaceService;
+
     protected $modulePath;
+
     protected CacheRepository $cacheManager;
 
     public function __construct(MarketplaceService $marketplaceService, CacheRepository $cacheManager)
@@ -91,19 +93,19 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'All required files exist',
-            'details' => []
+            'details' => [],
         ];
 
         $requiredFiles = [
             'composer.json',
-            'src/Providers/' . $moduleName . 'ServiceProvider.php',
+            'src/Providers/'.$moduleName.'ServiceProvider.php',
             'src/Routes/web.php',
-            'src/Config/config.php'
+            'src/Config/config.php',
         ];
 
         foreach ($requiredFiles as $file) {
             $path = "{$this->modulePath}/{$moduleName}/{$file}";
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 $result['status'] = 'error';
                 $result['message'] = 'Missing required files';
                 $result['details'][] = "Missing file: {$file}";
@@ -118,15 +120,16 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'messages' => [],
-            'details' => []
+            'details' => [],
         ];
 
         try {
-            $moduleState = DB::table('modules')->where('name', $moduleName)->first();
+            $moduleState = ModuleState::query()->where('name', $moduleName)->first();
 
-            if (!$moduleState) {
+            if (! $moduleState) {
                 $result['status'] = 'error';
-                $result['messages'][] = "Module state not found in database";
+                $result['messages'][] = 'Module state not found in database';
+
                 return $result;
             }
 
@@ -139,9 +142,9 @@ class ModuleHealthCheck
                 ? $moduleState->failed_migrations
                 : json_decode($moduleState->failed_migrations ?? '[]', true);
 
-            if (!empty($failedMigrations)) {
+            if (! empty($failedMigrations)) {
                 $result['status'] = 'error';
-                $result['messages'][] = "Module has failed migrations";
+                $result['messages'][] = 'Module has failed migrations';
                 $result['details']['failed_migrations'] = $failedMigrations;
             }
 
@@ -150,7 +153,7 @@ class ModuleHealthCheck
 
         } catch (\Exception $e) {
             $result['status'] = 'error';
-            $result['messages'][] = "Database check failed: " . $e->getMessage();
+            $result['messages'][] = 'Database check failed: '.$e->getMessage();
         }
 
         return $result;
@@ -161,21 +164,22 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'Service provider is properly registered',
-            'details' => []
+            'details' => [],
         ];
 
         $providerClass = "Modules\\{$moduleName}\\Providers\\{$moduleName}ServiceProvider";
+        ModuleAutoloader::register($moduleName);
 
-        if (!class_exists($providerClass)) {
+        if (! class_exists($providerClass)) {
             $result['status'] = 'error';
             $result['message'] = 'Service provider class not found';
+
             return $result;
         }
 
-        $providers = Config::get('app.providers', []);
-        if (!in_array($providerClass, $providers)) {
+        if (! is_subclass_of($providerClass, ServiceProvider::class)) {
             $result['status'] = 'error';
-            $result['message'] = 'Service provider not registered in config/app.php';
+            $result['message'] = 'Service provider class is not a Laravel service provider';
         }
 
         return $result;
@@ -186,14 +190,15 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'Migrations are up to date',
-            'details' => []
+            'details' => [],
         ];
 
         $migrationPath = "{$this->modulePath}/{$moduleName}/src/Database/Migrations";
 
-        if (!File::exists($migrationPath)) {
+        if (! File::exists($migrationPath)) {
             $result['status'] = 'warning';
             $result['message'] = 'No migrations directory found';
+
             return $result;
         }
 
@@ -205,12 +210,12 @@ class ModuleHealthCheck
 
         $missingMigrations = array_diff(
             array_map('basename', $migrations),
-            array_map(function($migration) {
-                return $migration . '.php';
+            array_map(function ($migration) {
+                return $migration.'.php';
             }, $dbMigrations)
         );
 
-        if (!empty($missingMigrations)) {
+        if (! empty($missingMigrations)) {
             $result['status'] = 'error';
             $result['message'] = 'Missing migrations in database';
             $result['details'] = $missingMigrations;
@@ -224,12 +229,13 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'messages' => [],
-            'details' => []
+            'details' => [],
         ];
 
-        if (!$this->cacheManager) {
+        if (! $this->cacheManager) {
             $result['status'] = 'warning';
             $result['messages'][] = 'Cache manager not available';
+
             return $result;
         }
 
@@ -259,7 +265,7 @@ class ModuleHealthCheck
 
         } catch (\Exception $e) {
             $result['status'] = 'error';
-            $result['messages'][] = 'Cache test failed: ' . $e->getMessage();
+            $result['messages'][] = 'Cache test failed: '.$e->getMessage();
         }
 
         return $result;
@@ -270,7 +276,7 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'All dependencies are satisfied',
-            'details' => []
+            'details' => [],
         ];
 
         try {
@@ -281,7 +287,7 @@ class ModuleHealthCheck
                     foreach ($composer['require'] as $package => $version) {
                         if (strpos($package, 'Modules/') === 0) {
                             $depModuleName = str_replace('Modules/', '', $package);
-                            if (!$this->marketplaceService->isModuleEnabled($depModuleName)) {
+                            if (! $this->marketplaceService->isModuleEnabled($depModuleName)) {
                                 $result['status'] = 'error';
                                 $result['message'] = 'Missing required module dependencies';
                                 $result['details'][] = "Required module {$depModuleName} is not enabled";
@@ -292,7 +298,7 @@ class ModuleHealthCheck
             }
         } catch (\Exception $e) {
             $result['status'] = 'error';
-            $result['message'] = 'Dependency check failed: ' . $e->getMessage();
+            $result['message'] = 'Dependency check failed: '.$e->getMessage();
         }
 
         return $result;
@@ -303,14 +309,15 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'Routes are properly registered',
-            'details' => []
+            'details' => [],
         ];
 
         $routeFile = "{$this->modulePath}/{$moduleName}/src/Routes/web.php";
 
-        if (!File::exists($routeFile)) {
+        if (! File::exists($routeFile)) {
             $result['status'] = 'warning';
             $result['message'] = 'No routes file found';
+
             return $result;
         }
 
@@ -333,14 +340,15 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'Views are properly registered',
-            'details' => []
+            'details' => [],
         ];
 
         $viewPath = "{$this->modulePath}/{$moduleName}/resources/views";
 
-        if (!File::exists($viewPath)) {
+        if (! File::exists($viewPath)) {
             $result['status'] = 'warning';
             $result['message'] = 'No views directory found';
+
             return $result;
         }
 
@@ -358,7 +366,7 @@ class ModuleHealthCheck
             }
         }
 
-        if (!$found) {
+        if (! $found) {
             $result['status'] = 'warning';
             $result['message'] = 'Views are not properly registered';
         }
@@ -371,19 +379,20 @@ class ModuleHealthCheck
         $result = [
             'status' => 'ok',
             'message' => 'Configuration is properly loaded',
-            'details' => []
+            'details' => [],
         ];
 
         $configFile = "{$this->modulePath}/{$moduleName}/src/Config/config.php";
 
-        if (!File::exists($configFile)) {
+        if (! File::exists($configFile)) {
             $result['status'] = 'warning';
             $result['message'] = 'No config file found';
+
             return $result;
         }
 
         // Check if config is loaded
-        if (!Config::has(strtolower($moduleName))) {
+        if (! Config::has(strtolower($moduleName))) {
             $result['status'] = 'error';
             $result['message'] = 'Module configuration is not loaded';
         }
@@ -393,18 +402,13 @@ class ModuleHealthCheck
 
     protected function logHealthCheck(array $health): void
     {
-        $logMessage = "Module Health Check for {$health['name']}: {$health['status']}";
-        $context = [
-            'module' => $health['name'],
-            'status' => $health['status'],
-            'checks' => $health['checks'],
-            'timestamp' => $health['timestamp']
-        ];
-
         if ($health['status'] === 'unhealthy') {
-            Log::error($logMessage, $context);
-        } else {
-            Log::info($logMessage, $context);
+            Log::error("Module Health Check for {$health['name']}: unhealthy", [
+                'module' => $health['name'],
+                'status' => $health['status'],
+                'checks' => $health['checks'],
+                'timestamp' => $health['timestamp'],
+            ]);
         }
     }
 }

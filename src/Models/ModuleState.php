@@ -9,12 +9,13 @@ class ModuleState extends Model
     protected $fillable = [
         'name',
         'version',
+        'description',
         'status',
         'enabled',
         'last_enabled_at',
         'last_disabled_at',
         'applied_migrations',
-        'failed_migrations'
+        'failed_migrations',
     ];
 
     protected $casts = [
@@ -22,7 +23,7 @@ class ModuleState extends Model
         'last_enabled_at' => 'datetime',
         'last_disabled_at' => 'datetime',
         'applied_migrations' => 'array',
-        'failed_migrations' => 'array'
+        'failed_migrations' => 'array',
     ];
 
     public function isEnabled()
@@ -32,7 +33,7 @@ class ModuleState extends Model
 
     public function isDisabled()
     {
-        return !$this->enabled;
+        return ! $this->enabled;
     }
 
     public function hasMigration($migration)
@@ -44,4 +45,4 @@ class ModuleState extends Model
     {
         return in_array($migration, $this->failed_migrations ?? []);
     }
-} 
+}

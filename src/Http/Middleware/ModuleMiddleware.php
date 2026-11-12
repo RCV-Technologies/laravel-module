@@ -5,6 +5,7 @@ namespace RCV\Core\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use RCV\Core\Services\ModuleManager;
 
 abstract class ModuleMiddleware
 {
@@ -28,31 +29,29 @@ abstract class ModuleMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
      * @return mixed
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!$this->isModuleEnabled()) {
+        if (! $this->isModuleEnabled()) {
             return $this->handleDisabledModule($request);
         }
 
         try {
             $response = $this->processRequest($request, $next);
             $this->logRequest($request, $response);
+
             return $response;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logError($request, $e);
-            return $this->handleError($request, $e);
+
+            throw $e;
         }
     }
 
     /**
      * Process the request.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
      * @return mixed
      */
     abstract protected function processRequest(Request $request, Closure $next);
@@ -60,7 +59,6 @@ abstract class ModuleMiddleware
     /**
      * Handle a disabled module.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return mixed
      */
     protected function handleDisabledModule(Request $request)
@@ -68,104 +66,83 @@ abstract class ModuleMiddleware
         if ($request->expectsJson()) {
             return response()->json([
                 'error' => 'Module is disabled',
-                'module' => $this->moduleName
+                'module' => $this->moduleName,
             ], 403);
         }
 
         return response()->view('core::errors.module-disabled', [
-            'module' => $this->moduleName
+            'module' => $this->moduleName,
         ], 403);
     }
 
     /**
      * Handle an error.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Exception  $e
      * @return mixed
      */
-    protected function handleError(Request $request, \Exception $e)
+    protected function handleError(Request $request, \Throwable $e)
     {
+        $message = 'An unexpected error occurred. Please try again later.';
+
         if ($request->expectsJson()) {
             return response()->json([
                 'error' => 'Module error',
-                'message' => $e->getMessage(),
-                'module' => $this->moduleName
+                'message' => $message,
+                'module' => $this->moduleName,
             ], 500);
         }
 
         return response()->view('core::errors.module-error', [
             'module' => $this->moduleName,
-            'error' => $e->getMessage()
+            'error' => $message,
         ], 500);
     }
 
     /**
      * Check if the module is enabled.
-     *
-     * @return bool
      */
     protected function isModuleEnabled(): bool
     {
-        return app('modules')->isEnabled($this->moduleName);
+        return app(ModuleManager::class)->isModuleEnabled($this->moduleName);
     }
 
     /**
      * Get the module name.
-     *
-     * @return string
      */
     protected function getModuleName(): string
     {
         $class = get_class($this);
         $parts = explode('\\', $class);
+
         return $parts[1] ?? 'unknown';
     }
 
     /**
      * Log the request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  mixed  $response
-     * @return void
      */
     protected function logRequest(Request $request, $response): void
     {
-        if (config('middleware.config.logging', true)) {
-            Log::info('Module middleware request', [
-                'module' => $this->moduleName,
-                'method' => $request->method(),
-                'url' => $request->fullUrl(),
-                'status' => $response->status() ?? 200
-            ]);
-        }
+        // Request logging is intentionally omitted to avoid high-volume logs.
     }
 
     /**
      * Log an error.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Exception  $e
-     * @return void
      */
-    protected function logError(Request $request, \Exception $e): void
+    protected function logError(Request $request, \Throwable $e): void
     {
         Log::error('Module middleware error', [
             'module' => $this->moduleName,
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'exception' => get_class($e),
         ]);
     }
 
     /**
      * Get the middleware's priority.
-     *
-     * @return int
      */
     public function getPriority(): int
     {
         return config("middleware.priority.{$this->moduleName}", 0);
     }
-} 
+}

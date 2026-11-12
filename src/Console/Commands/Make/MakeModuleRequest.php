@@ -28,7 +28,7 @@ class MakeModuleRequest extends Command
         $subPath = implode('/', array_map([Str::class, 'studly'], $requestParts));
 
         // --- Paths & Namespace ---
-        $basePath = base_path("Modules/{$module}/src/Http/Requests" . ($subPath ? "/{$subPath}" : ''));
+        $basePath = module_path($module, 'src/Http/Requests') . ($subPath ? "/{$subPath}" : '');
         $namespace = "Modules\\{$module}\\Http\\Requests" . ($subNamespace ? "\\{$subNamespace}" : '');
         $filePath = "{$basePath}/{$className}.php";
 

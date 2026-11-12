@@ -14,17 +14,29 @@ class DispatchEventJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $event;
+
     public array $payload;
+
     public array $options;
 
-    public int $tries = 5;
-    public int $backoff = 5;
+    public int $tries;
+
+    public int|array $backoff;
 
     public function __construct(string $event, array $payload = [], array $options = [])
     {
         $this->event = $event;
         $this->payload = $payload;
         $this->options = $options;
+        $this->tries = max(1, (int) ($options['tries'] ?? 5));
+        $backoff = $options['backoff'] ?? config('core.messaging.backoff', 5);
+        $this->backoff = is_int($backoff) || is_array($backoff) ? $backoff : 5;
+
+        if (($options['after_commit'] ?? null) === true) {
+            $this->afterCommit();
+        } elseif (($options['after_commit'] ?? null) === false) {
+            $this->beforeCommit();
+        }
     }
 
     public function handle(): void
@@ -32,12 +44,11 @@ class DispatchEventJob implements ShouldQueue
         try {
             event($this->event, $this->payload);
         } catch (\Throwable $e) {
-            Log::error('MessageBus dispatch failed: '.$e->getMessage(), [
+            Log::error('MessageBus dispatch failed.', [
                 'event' => $this->event,
+                'exception' => get_class($e),
             ]);
             throw $e;
         }
     }
 }
-
-

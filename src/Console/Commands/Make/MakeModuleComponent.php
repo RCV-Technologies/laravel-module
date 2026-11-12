@@ -18,42 +18,44 @@ class MakeModuleComponent extends Command
 
     public function handle(): int
     {
-        $names  = explode(',', $this->argument('names'));
+        $names = explode(',', $this->argument('names'));
         $module = $this->argument('module');
+        $success = true;
 
         foreach ($names as $name) {
             $name = trim($name);
-            $this->generateComponent($module, $name);
+            if (! $this->generateComponent($module, $name)) {
+                $success = false;
+            }
         }
 
-        return static::SUCCESS;
+        return $success ? static::SUCCESS : static::FAILURE;
     }
 
-
-    protected function generateComponent(string $module, string $name): void
+    protected function generateComponent(string $module, string $name): bool
     {
         [$classPath, $viewPath, $namespace, $className, $viewName] = $this->preparePaths($module, $name);
 
-        // Generate Component Class
-        if (!File::exists($classPath)) {
-            File::ensureDirectoryExists(dirname($classPath));
-            File::put($classPath, $this->getClassTemplate($namespace, $className, $viewName));
-            $this->info("✅ Component class created: {$classPath}");
-        } else {
-            $this->error("⚠️ Component class already exists: {$classPath}");
+        if (File::exists($classPath) || File::exists($viewPath)) {
+            $existingPath = File::exists($classPath) ? $classPath : $viewPath;
+            $this->error("Component output already exists: {$existingPath}");
+
+            return false;
         }
 
-        // Generate Component View
-        if (!File::exists($viewPath)) {
-            File::ensureDirectoryExists(dirname($viewPath));
-            File::put($viewPath, $this->getViewTemplate());
-            $this->info("✅ Component view created: {$viewPath}");
-        } else {
-            $this->error("⚠️ Component view already exists: {$viewPath}");
-        }
+        // Generate Component Class
+        File::ensureDirectoryExists(dirname($classPath));
+        File::put($classPath, $this->getClassTemplate($namespace, $className, $viewName));
+        $this->info("✅ Component class created: {$classPath}");
+
+        File::ensureDirectoryExists(dirname($viewPath));
+        File::put($viewPath, $this->getViewTemplate());
+        $this->info("✅ Component view created: {$viewPath}");
 
         // Register in ServiceProvider
-        $this->registerInServiceProvider($module, '\\' . $namespace . '\\' . $className, $viewName);
+        $this->registerInServiceProvider($module, '\\'.$namespace.'\\'.$className, $viewName);
+
+        return true;
     }
 
     protected function preparePaths(string $module, string $name): array
@@ -65,30 +67,30 @@ class MakeModuleComponent extends Command
         $subPath = implode('/', $parts); // Organization
 
         $namespace = "Modules\\{$module}\\View\\Components"
-            . ($subNamespace ? "\\{$subNamespace}" : '');
+            .($subNamespace ? "\\{$subNamespace}" : '');
 
         // Class file
-        $classPath = base_path("Modules/{$module}/src/View/Components"
-            . ($subPath ? "/{$subPath}" : '')
-            . "/{$className}.php");
+        $classPath = module_path($module, 'src/View/Components')
+            .($subPath ? "/{$subPath}" : '')
+            ."/{$className}.php";
 
         // Blade file (kebab-case)
         $viewRelative = strtolower(implode('/', array_filter([
             $subPath,
-            Str::kebab($className)
+            Str::kebab($className),
         ])));
 
-        $viewPath = base_path("Modules/{$module}/src/Resources/views/components/{$viewRelative}.blade.php");
+        $viewPath = module_path($module, "src/Resources/views/components/{$viewRelative}.blade.php");
 
-        $viewName = strtolower($module) . "::components." . str_replace('/', '.', $viewRelative);
+        $viewName = strtolower($module).'::components.'.str_replace('/', '.', $viewRelative);
 
         return [$classPath, $viewPath, $namespace, $className, $viewName];
     }
 
     protected function getClassTemplate(string $namespace, string $className, string $viewName): string
     {
-        $stubPath = $this->option('stub-class') ?? __DIR__ . '/../stubs/component.stub';
-        $stub     = File::get($stubPath);
+        $stubPath = $this->option('stub-class') ?? __DIR__.'/../stubs/component.stub';
+        $stub = File::get($stubPath);
 
         return str_replace(
             ['{{ namespace }}', '{{ class_name }}', '{{ view_path }}'],
@@ -99,16 +101,18 @@ class MakeModuleComponent extends Command
 
     protected function getViewTemplate(): string
     {
-        $stubPath = $this->option('stub-view') ?? __DIR__ . '/../stubs/component-view.stub';
+        $stubPath = $this->option('stub-view') ?? __DIR__.'/../stubs/component-view.stub';
+
         return File::get($stubPath);
     }
 
     protected function registerInServiceProvider(string $module, string $classNamespace, string $viewName): void
     {
-        $providerPath = base_path("Modules/{$module}/src/Providers/{$module}ServiceProvider.php");
+        $providerPath = module_path($module, "src/Providers/{$module}ServiceProvider.php");
 
-        if (!File::exists($providerPath)) {
+        if (! File::exists($providerPath)) {
             $this->error("⚠️ ServiceProvider not found for module: {$module}");
+
             return;
         }
 
@@ -118,6 +122,7 @@ class MakeModuleComponent extends Command
 
         if (strpos($contents, $registrationLine) !== false) {
             $this->info("🔁 Component already registered in {$module}ServiceProvider");
+
             return;
         }
 

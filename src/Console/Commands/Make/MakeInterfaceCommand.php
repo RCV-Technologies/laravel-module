@@ -59,7 +59,7 @@ class MakeInterfaceCommand extends Command
         $module = $this->getModuleName();
         $className = Str::studly(class_basename($this->argument('name')));
 
-        return base_path("Modules/{$module}/src/Repositories/Interfaces/{$className}.php");
+        return module_path($module, "src/Repositories/Interfaces/{$className}.php");
     }
 
     protected function getNamespace(): string

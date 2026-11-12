@@ -76,7 +76,7 @@ class MakeCastCommand extends Command
         $subPath = trim(dirname($nameInput), '.');
         $className = Str::studly(class_basename($nameInput));
 
-        $directory = base_path("Modules/{$module}/src/Casts" . ($subPath ? '/' . $subPath : ''));
+        $directory = module_path($module, 'src/Casts') . ($subPath ? '/' . $subPath : '');
 
         return "{$directory}/{$className}.php";
     }

@@ -33,7 +33,7 @@ class ModuleMakeServiceCommand extends Command
         $module = $this->argument('module');
 
         // Ensure module exists
-        $modulePath = base_path("Modules/{$module}");
+        $modulePath = module_path($module);
         if (!File::exists($modulePath)) {
             $this->error("Module [{$module}] does not exist.");
             return 1;

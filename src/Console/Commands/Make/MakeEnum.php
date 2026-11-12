@@ -68,7 +68,7 @@ class MakeEnum extends Command
         $subPath = trim(dirname($nameInput), '.');
 
         // Always put enums inside `src/Enums/...`
-        $directory = base_path("Modules/{$module}/src/Enums" . ($subPath ? '/' . $subPath : ''));
+        $directory = module_path($module, 'src/Enums') . ($subPath ? '/' . $subPath : '');
 
         return "{$directory}/{$enumName}.php";
     }

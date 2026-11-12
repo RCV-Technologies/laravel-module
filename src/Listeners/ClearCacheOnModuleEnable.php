@@ -3,17 +3,16 @@
 namespace RCV\Core\Listeners;
 
 use RCV\Core\Events\ModuleEnabled;
-use Illuminate\Support\Facades\Artisan;
+use RCV\Core\Services\CacheManager;
+use RCV\Core\Services\ModuleManager;
 
 class ClearCacheOnModuleEnable
 {
     public function handle(ModuleEnabled $event): void
     {
-        Artisan::call('cache:clear');
-        Artisan::call('config:clear');
-        Artisan::call('route:clear');
-        Artisan::call('view:clear');
+        app(CacheManager::class)->invalidateModule($event->name);
+        app(ModuleManager::class)->refreshEnabledModulesCache();
 
-        info("Caches cleared after enabling module: {$event->name}");
+        info("RCV Core cache entries invalidated after enabling module: {$event->name}");
     }
 }

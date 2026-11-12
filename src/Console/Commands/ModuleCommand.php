@@ -4,11 +4,11 @@ namespace RCV\Core\Console\Commands;
 
 use Illuminate\Console\Command;
 use RCV\Core\Services\ModuleManager;
-use Symfony\Component\Process\Process;
 
 class ModuleCommand extends Command
 {
     protected $signature = 'module {action : The action to perform (list|enable|disable)} {name? : The name of the module}';
+
     protected $description = 'Manage modules';
 
     protected $moduleManager;
@@ -36,6 +36,7 @@ class ModuleCommand extends Command
                 break;
             default:
                 $this->error("Unknown action: {$action}");
+
                 return 1;
         }
 
@@ -45,66 +46,54 @@ class ModuleCommand extends Command
     protected function listModules()
     {
         $modules = $this->moduleManager->getAvailableModules();
-        
+
         $headers = ['Name', 'Title', 'Description', 'Version', 'Status'];
         $rows = [];
-        
+
         foreach ($modules as $module) {
             $rows[] = [
                 $module['name'],
                 $module['title'],
                 $module['description'],
                 $module['version'],
-                $module['enabled'] ? 'Enabled' : 'Disabled'
+                $module['enabled'] ? 'Enabled' : 'Disabled',
             ];
         }
-        
+
         $this->table($headers, $rows);
     }
 
     protected function enableModule($name)
     {
-        if (!$name) {
+        if (! $name) {
             $this->error('Module name is required');
+
             return 1;
         }
 
         if ($this->moduleManager->enableModule($name)) {
             $this->info("Module [{$name}] enabled successfully");
-            
-            // Run composer dump-autoload
-            $this->info('Running composer dump-autoload...');
-            $process = Process::fromShellCommandline('composer dump-autoload', base_path());
-            $process->setTimeout(null);
-            $process->run(function ($type, $buffer) {
-                $this->output->write($buffer);
-            });
         } else {
             $this->error("Failed to enable module [{$name}]");
+
             return 1;
         }
     }
 
     protected function disableModule($name)
     {
-        if (!$name) {
+        if (! $name) {
             $this->error('Module name is required');
+
             return 1;
         }
 
         if ($this->moduleManager->disableModule($name)) {
             $this->info("Module [{$name}] disabled successfully");
-            
-            // Run composer dump-autoload
-            $this->info('Running composer dump-autoload...');
-            $process = Process::fromShellCommandline('composer dump-autoload', base_path());
-            $process->setTimeout(null);
-            $process->run(function ($type, $buffer) {
-                $this->output->write($buffer);
-            });
         } else {
             $this->error("Failed to disable module [{$name}]");
+
             return 1;
         }
     }
-} 
+}

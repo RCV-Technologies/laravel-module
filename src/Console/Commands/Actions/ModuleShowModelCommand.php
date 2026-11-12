@@ -34,7 +34,7 @@ class ModuleShowModelCommand extends Command
 
     protected function getModulePath(string $moduleName): string
     {
-        return base_path("Modules/{$moduleName}/src/Models");
+        return module_path($moduleName, 'src/Models');
     }
 
     protected function getAllModulePaths(): array

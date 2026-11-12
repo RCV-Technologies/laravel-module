@@ -5,23 +5,39 @@ namespace RCV\Core\Console\Commands\Database\Seeders;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use RCV\Core\Services\ModuleAutoloader;
+use RCV\Core\Services\ModuleNameValidator;
 
 class ModuleSeedCommand extends Command
 {
     protected $signature = 'module:seed {module : The name of the module} {--class= : The seeder class to run} {--fresh : Drop all tables and re-run all migrations}';
+
     protected $description = 'Seed the specific module\'s database seeds';
 
-    public function handle()
+    public function handle(): int
     {
         $module = $this->argument('module');
         $seederClass = $this->option('class');
         $fresh = $this->option('fresh');
 
+        if (! ModuleNameValidator::isValid($module)) {
+            $this->error('Invalid module name. Use letters, numbers, hyphens, and underscores; start with a letter.');
+
+            return self::FAILURE;
+        }
+
         // Check if module exists
-        $modulePath = base_path("Modules/{$module}");
-        if (!File::exists($modulePath)) {
+        $modulePath = module_path($module);
+        if (! File::exists($modulePath)) {
             $this->error("Module '{$module}' does not exist.");
-            return 1;
+
+            return self::FAILURE;
+        }
+
+        if (! ModuleAutoloader::register($module)) {
+            $this->error("Unable to register the autoloader for module [{$module}].");
+
+            return self::FAILURE;
         }
 
         // Determine seeder class
@@ -32,23 +48,24 @@ class ModuleSeedCommand extends Command
         }
 
         // Check if seeder class exists
-        if (!class_exists($fullSeederClass)) {
+        if (! class_exists($fullSeederClass)) {
             $this->error("Seeder class {$fullSeederClass} not found.");
-            return 1;
+
+            return self::FAILURE;
         }
 
         // Handle fresh option - rollback and re-migrate
         if ($fresh) {
             $this->info("Rolling back migrations for module: {$module}");
-            
+
             $migrationPath = "Modules/{$module}/Database/Migrations";
             // Check if migration path exists (try common variations)
             $possiblePaths = [
                 "Modules/{$module}/Database/Migrations",
                 "Modules/{$module}/src/database/migrations",
-                "Modules/{$module}/database/migrations"
+                "Modules/{$module}/database/migrations",
             ];
-            
+
             $actualPath = null;
             foreach ($possiblePaths as $path) {
                 if (File::exists(base_path($path))) {
@@ -56,16 +73,16 @@ class ModuleSeedCommand extends Command
                     break;
                 }
             }
-            
+
             if ($actualPath) {
                 Artisan::call('migrate:rollback', [
-                    '--path' => $actualPath
+                    '--path' => $actualPath,
                 ]);
                 $this->line(Artisan::output());
-                
+
                 $this->info("Re-running migrations for module: {$module}");
                 Artisan::call('migrate', [
-                    '--path' => $actualPath
+                    '--path' => $actualPath,
                 ]);
                 $this->line(Artisan::output());
             } else {
@@ -75,24 +92,30 @@ class ModuleSeedCommand extends Command
 
         // Run the seeder
         $this->info("Seeding: {$fullSeederClass}");
-        
+
         try {
-            Artisan::call('db:seed', [
-                '--class' => $fullSeederClass
+            $status = Artisan::call('db:seed', [
+                '--class' => $fullSeederClass,
             ]);
-            
+
             $output = Artisan::output();
             if ($output) {
                 $this->line($output);
             }
-            
+
+            if ($status !== self::SUCCESS) {
+                $this->error("Module '{$module}' seeding failed.");
+
+                return self::FAILURE;
+            }
+
             $this->info("Module '{$module}' seeded successfully!");
-            
-        } catch (\Exception $e) {
-            $this->error("Failed to seed module '{$module}': " . $e->getMessage());
-            return 1;
+        } catch (\Throwable $e) {
+            $this->error("Failed to seed module '{$module}': ".$e->getMessage());
+
+            return self::FAILURE;
         }
 
-        return 0;
+        return self::SUCCESS;
     }
 }

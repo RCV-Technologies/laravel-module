@@ -4,7 +4,6 @@ namespace Modules\{{ module_name }}\Repositories;
 
 use RCV\Core\Repositories\BaseRepository as CoreBaseRepository;
 
-class {{ class_name }}Repository extends CoreBaseRepository
+class {{ class_name }} extends CoreBaseRepository
 {
-    
-} 
+}

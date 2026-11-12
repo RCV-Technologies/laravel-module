@@ -70,7 +70,7 @@ class ModuleMetrics
      */
     public function startTimer(string $key): void
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return;
         }
         $this->timers[$key] = microtime(true);
@@ -82,16 +82,17 @@ class ModuleMetrics
      */
     public function endTimer(string $key): ?float
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return null;
         }
-        if (!isset($this->timers[$key])) {
+        if (! isset($this->timers[$key])) {
             return null;
         }
         $startedAt = $this->timers[$key];
         unset($this->timers[$key]);
         $elapsedMs = (microtime(true) - $startedAt) * 1000.0;
         $this->setGauge("timer.ms.$key", $elapsedMs);
+
         return $elapsedMs;
     }
 
@@ -101,6 +102,7 @@ class ModuleMetrics
     public function getTimer(string $key): ?float
     {
         $value = $this->getGauge("timer.ms.$key");
+
         return $value === null ? null : (float) $value;
     }
 
@@ -109,11 +111,23 @@ class ModuleMetrics
      */
     public function increment(string $key, int $value = 1): void
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return;
         }
-        $current = $this->getCounter($key) ?? 0;
-        $this->storeCounter($key, $current + $value);
+        if ($this->driver === 'cache') {
+            $cacheKey = $this->cacheKey("counter.$key");
+            $cache = Cache::store($this->cacheStore);
+            $cache->add($cacheKey, 0);
+            if ($value < 0) {
+                $cache->decrement($cacheKey, abs($value));
+            } else {
+                $cache->increment($cacheKey, $value);
+            }
+
+            return;
+        }
+
+        $this->counters[$key] = ($this->counters[$key] ?? 0) + $value;
     }
 
     /**
@@ -132,6 +146,7 @@ class ModuleMetrics
         if ($this->driver === 'cache') {
             return Cache::store($this->cacheStore)->get($this->cacheKey("counter.$key"));
         }
+
         return $this->counters[$key] ?? null;
     }
 
@@ -140,11 +155,12 @@ class ModuleMetrics
      */
     public function setGauge(string $key, float|int $value): void
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return;
         }
         if ($this->driver === 'cache') {
             Cache::store($this->cacheStore)->forever($this->cacheKey("gauge.$key"), $value);
+
             return;
         }
         $this->gauges[$key] = $value;
@@ -158,6 +174,7 @@ class ModuleMetrics
         if ($this->driver === 'cache') {
             return Cache::store($this->cacheStore)->get($this->cacheKey("gauge.$key"));
         }
+
         return $this->gauges[$key] ?? null;
     }
 
@@ -183,6 +200,7 @@ class ModuleMetrics
     {
         if ($this->driver === 'cache') {
             Cache::store($this->cacheStore)->forever($this->cacheKey("counter.$key"), $value);
+
             return;
         }
         $this->counters[$key] = $value;
@@ -191,8 +209,7 @@ class ModuleMetrics
     protected function cacheKey(string $key): string
     {
         $prefix = (string) Config::get('metrics.cache_prefix', 'rcv:metrics:');
+
         return $prefix.$key;
     }
 }
-
-
