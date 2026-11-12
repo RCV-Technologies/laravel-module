@@ -3,6 +3,7 @@
     "description": "Enterprise-Grade Modular Architecture for Laravel Applications - A powerful Laravel package that revolutionizes application development with robust Service Repository Pattern, Dynamic Module Management, and 50+ Artisan commands for scalable, maintainable applications.",
     "type": "library",
     "license": "MIT",
+    "version": "2.0.0",
     "keywords": [
         "laravel",
         "modular",
