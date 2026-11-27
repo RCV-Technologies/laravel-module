@@ -213,6 +213,10 @@ class CoreServiceProvider extends ServiceProvider
         // Register configuration first
         $this->registerConfig();
 
+        // Module discovery runs during register(), before Laravel's deferred cache
+        // provider is available, so make the cache available now.
+        $this->ensureCacheIsAvailable();
+
         // Register event listeners
         Event::listen(ModuleEnabled::class, ClearCacheOnModuleEnable::class);
         Event::listen(ModuleDisabled::class, ClearCacheOnModuleDisable::class);
@@ -248,6 +252,25 @@ class CoreServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->registerTranslations();
         $this->registerMigrations();
+    }
+
+    /**
+     * Register the cache service early so the enabled-module list can be cached.
+     */
+    protected function ensureCacheIsAvailable(): void
+    {
+        if ($this->app->bound('cache')) {
+            return;
+        }
+
+        $this->app->register(\Illuminate\Cache\CacheServiceProvider::class);
+
+        $store = config('cache.default');
+        $driver = config("cache.stores.{$store}.driver");
+
+        if ($driver === 'redis' && ! $this->app->bound('redis')) {
+            $this->app->register(\Illuminate\Redis\RedisServiceProvider::class);
+        }
     }
 
     /**
@@ -311,6 +334,11 @@ class CoreServiceProvider extends ServiceProvider
      */
     protected function registerAdditionalCommands(): void
     {
+        // Commands are only needed in console; skip the file read on web requests.
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
         // Register commands from config file
         $configPath = __DIR__.'/../Config/config.php';
         if (File::exists($configPath)) {
@@ -320,74 +348,71 @@ class CoreServiceProvider extends ServiceProvider
             }
         }
 
-        // Register commands only in console
-        if ($this->app->runningInConsole()) {
-            // Register seeder listener only once using singleton
-            $this->app->singleton('rcv.seeder.listener.registered', function () {
-                Event::listen(CommandFinished::class, function ($event) {
-                    static $rcvSeedingModules = false;
-                    if ($rcvSeedingModules) {
+        // Register seeder listener only once using singleton
+        $this->app->singleton('rcv.seeder.listener.registered', function () {
+            Event::listen(CommandFinished::class, function ($event) {
+                static $rcvSeedingModules = false;
+                if ($rcvSeedingModules) {
+                    return;
+                }
+
+                if ($event->command === 'db:seed') {
+                    if (! config('core.seed_modules', false)) {
                         return;
                     }
 
-                    if ($event->command === 'db:seed') {
-                        if (! config('core.seed_modules', false)) {
-                            return;
-                        }
-
-                        // Laravel supplies the root DatabaseSeeder as the default
-                        // option even when the user runs plain `db:seed`.
-                        $input = $event->input ?? null;
-                        if ($input && $input->getOption('class') !== 'Database\\Seeders\\DatabaseSeeder') {
-                            return;
-                        }
-
-                        $modulesPath = base_path('Modules');
-                        if (! File::exists($modulesPath)) {
-                            return;
-                        }
-
-                        $rcvSeedingModules = true;
-                        try {
-                            foreach (File::directories($modulesPath) as $moduleDir) {
-                                $moduleName = basename($moduleDir);
-                                $moduleManager = $this->app->make(ModuleManager::class);
-                                if (! $moduleManager->isModuleEnabled($moduleName)) {
-                                    continue;
-                                }
-
-                                $seederClass = "Modules\\{$moduleName}\\Database\\Seeders\\{$moduleName}DatabaseSeeder";
-                                ModuleAutoloader::register($moduleName);
-                                if (class_exists($seederClass)) {
-                                    try {
-                                        $exitCode = Artisan::call('db:seed', [
-                                            '--class' => $seederClass,
-                                            '--force' => true,
-                                        ]);
-                                        if ($exitCode !== 0) {
-                                            $this->app['log']->error("Module seeder failed for {$moduleName}: ".Artisan::output());
-                                            continue;
-                                        }
-
-                                    } catch (\Throwable $t) {
-                                        $this->app['log']->error("Failed seeding module {$moduleName}: ".$t->getMessage());
-                                    }
-                                } else {
-                                    $this->app['log']->warning("Module seeder class not found: {$seederClass}");
-                                }
-                            }
-                        } finally {
-                            $rcvSeedingModules = false;
-                        }
+                    // Laravel supplies the root DatabaseSeeder as the default
+                    // option even when the user runs plain `db:seed`.
+                    $input = $event->input ?? null;
+                    if ($input && $input->getOption('class') !== 'Database\\Seeders\\DatabaseSeeder') {
+                        return;
                     }
-                });
 
-                return true;
+                    $modulesPath = base_path('Modules');
+                    if (! File::exists($modulesPath)) {
+                        return;
+                    }
+
+                    $rcvSeedingModules = true;
+                    try {
+                        foreach (File::directories($modulesPath) as $moduleDir) {
+                            $moduleName = basename($moduleDir);
+                            $moduleManager = $this->app->make(ModuleManager::class);
+                            if (! $moduleManager->isModuleEnabled($moduleName)) {
+                                continue;
+                            }
+
+                            $seederClass = "Modules\\{$moduleName}\\Database\\Seeders\\{$moduleName}DatabaseSeeder";
+                            ModuleAutoloader::register($moduleName);
+                            if (class_exists($seederClass)) {
+                                try {
+                                    $exitCode = Artisan::call('db:seed', [
+                                        '--class' => $seederClass,
+                                        '--force' => true,
+                                    ]);
+                                    if ($exitCode !== 0) {
+                                        $this->app['log']->error("Module seeder failed for {$moduleName}: ".Artisan::output());
+                                        continue;
+                                    }
+
+                                } catch (\Throwable $t) {
+                                    $this->app['log']->error("Failed seeding module {$moduleName}: ".$t->getMessage());
+                                }
+                            } else {
+                                $this->app['log']->warning("Module seeder class not found: {$seederClass}");
+                            }
+                        }
+                    } finally {
+                        $rcvSeedingModules = false;
+                    }
+                }
             });
 
-            // Force resolution
-            $this->app->make('rcv.seeder.listener.registered');
-        }
+            return true;
+        });
+
+        // Force resolution
+        $this->app->make('rcv.seeder.listener.registered');
     }
 
     /**

@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-11-27
+
+### Security
+- **Module routes now use the `web` / `api` middleware groups**: The generated module service provider (`provider.stub`) loaded `Routes/web.php` and `Routes/api.php` without any middleware group, so module web routes had no session, CSRF protection or cookie encryption, and API routes had no API middleware such as rate limiting. Routes are now registered inside `Route::middleware('web')` and `Route::middleware('api')`. **Modules generated with 2.0.0 or earlier must update `registerRoutes()` in their own service provider.**
+- **`module:migrate-fresh` requires confirmation in production**: The command drops every table in the default connection. It now uses Laravel's `ConfirmableTrait` (cancelled in production unless `--force` is given), warns which connection and database will be wiped, and uses `Schema::dropAllTables()` instead of MySQL-only raw SQL. It no longer calls `env('DB_DATABASE')`, which returned `null` under `config:cache` and crashed after foreign-key checks had been disabled.
+- **Backup paths are restricted to the backup directory**: `ModuleBackupManager::restoreBackup()` and `deleteBackup()` (and `module:backup restore|delete --backup=`) now reject any path outside `marketplace.modules.backup.path`, so they can no longer recursively delete or copy arbitrary directories.
+- **Generated form requests deny by default**: `module-request.stub` now returns `false` from `authorize()` (matching Laravel's default) instead of allowing every user.
+- **Package config no longer ships a machine-specific path**: `src/Config/config.php` contained a hard-coded absolute path and module list from the build machine. It now uses `base_path('Modules')` and no module list.
+
+### Fixed
+- **Stale module status in `module:analyze`**: `module:enable` and `module:disable` now clear the marketplace module list (`modules.list`) and per-module details cache. Previously the `ClearCacheOnModuleEnable` / `ClearCacheOnModuleDisable` listeners only forgot the prefixed `rcv_core:module_1.0.0:*` keys, so `MarketplaceService::list()` kept serving the old status for up to the cache TTL.
+- **Dependency graph cache invalidation**: `modules.dependency_graph.v1` is now cleared whenever a module is enabled, disabled, installed, updated or removed, so a cached graph (`modules.dependency_graph.cache_enabled = true`) no longer reports outdated module status.
+- **Dependency graph enabled status**: `ModuleDependencyGraph` now reads enabled status from `ModuleManager::isModuleEnabled()`, the same source used by autoloading and middleware, instead of the marketplace cache.
+- **Enabled-module cache was never used**: `ModuleManager` is resolved while providers register, before Laravel's deferred cache provider is available, so it queried `module_states` on every request and command. `CoreServiceProvider` now registers the cache provider (and the Redis provider when the default store uses Redis) early, and `ModuleManager` remembers the enabled list for the lifetime of the instance instead of hitting the cache store on every `isModuleEnabled()` call.
+- **`module:make` no longer writes into `vendor/`**: `module:make` and `module:make-multiple` rewrote `vendor/rcv/core/src/Config/config.php` to track modules. That change was lost on every `composer install`, required a writable `vendor/` and baked in a server path. Existing modules are now checked against the `module_states` table.
+- **`module:migrate-fresh` missed package migrations**: It ran `migrate --path=database/migrations`, which skipped the package's own `module_states` migration and then failed when refreshing the module cache. It now runs the full `migrate` first and module migrations second, so modules can rely on core tables.
+- **`module` middleware alias pointed to an abstract class**: The base `ModuleServiceProvider` aliased `module` to the abstract `ModuleMiddleware`, so any route using it failed with a 500. The alias was removed; modules should alias their own concrete subclass.
+- **Route caching in the base `ModuleServiceProvider`**: Module routes are no longer re-registered on every request when routes are cached (`route:cache`).
+- **`ModuleBackupManager` error handling**: The `Log` facade was not imported, so every failure path threw "Class not found" and hid the real error.
+- **Duplicate query and noisy logs when `module_states` is missing**: On a fresh install (before `migrate`) `ModuleManager` ran the failing `module_states` query twice and logged two DEBUG entries with full stack traces on every request and artisan command. It now queries once and logs one short line. A failing cache store still falls back to the database.
+- **`Module` facade alias was broken**: `composer.json` registered a `Module` alias for `RCV\Core\Facades\Module`, but that class did not exist, so any `Module::` call crashed. The facade now exists and resolves to `ModuleManager`.
+- **Branch alias**: `dev-main` is now aliased to `2.x-dev` (was `1.x-dev`).
+- **Cache warm-up crashed without `module_states`**: `CacheManager::warmUp()` (called by `invalidateAll()`) threw when the table did not exist yet; it now skips the warm-up.
+
+### Changed
+- **README rewritten**: Accurate requirements, installation, command reference (matching the real command signatures), configuration and an upgrade guide for 2.0.1. Removed documentation for commands, config keys and features that do not exist, and the leftover GitLab template.
+- **Removed info-level logging**: The enable/disable cache listeners and `ComposerDependencyManager` no longer write info-level log entries. Warnings and errors are still logged.
+- **Shorter log entries**: `ModuleManager` and `CacheManager` log the exception class and message instead of full stack traces for expected conditions. Rejected backup paths in `ModuleBackupManager` are thrown to the caller without also being logged as errors.
+- **Less work on web requests**: `CoreServiceProvider` reads its command list from `config.php` only in the console, and `ModuleManager` creates the `Modules/` directory only in the console.
+- Removed duplicate route-path lines and unreachable `return` statements in the base `ModuleServiceProvider`.
+
+### Added
+- `RCV\Core\Facades\Module` facade (alias `Module`) for `ModuleManager`.
+- `MarketplaceService::clearCachedState()` to clear a module's marketplace cache entries after a state change made outside the service.
+- `MarketplaceService::LIST_CACHE_KEY` and `ModuleDependencyGraph::CACHE_KEY` constants for the cache keys.
+
 ## [2.0.0] - 2026-11-04
 
 ### Fixed

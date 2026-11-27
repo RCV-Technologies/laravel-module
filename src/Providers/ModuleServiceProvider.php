@@ -12,7 +12,6 @@ use RCV\Core\Console\Commands\Make\ModuleMiddlewareCommand;
 use RCV\Core\Console\Commands\ModuleBackupCommand;
 use RCV\Core\Console\Commands\ModuleDependencyGraphCommand;
 use RCV\Core\Console\Commands\ModuleHealthCheckCommand;
-use RCV\Core\Http\Middleware\ModuleMiddleware;
 use RCV\Core\Http\Middleware\ModuleMiddlewareManager;
 
 abstract class ModuleServiceProvider extends ServiceProvider
@@ -160,9 +159,11 @@ abstract class ModuleServiceProvider extends ServiceProvider
      */
     protected function registerRoutes(): void
     {
+        if ($this->app->routesAreCached()) {
+            return;
+        }
+
         $moduleName = $this->getModuleName();
-        $webRoutePath = realpath(module_path($moduleName, 'src/Routes/web.php'));
-        $apiRoutePath = realpath(module_path($moduleName, 'src/Routes/api.php'));
         $webRoutePath = realpath(module_path($moduleName, 'src/Routes/web.php'));
         $apiRoutePath = realpath(module_path($moduleName, 'src/Routes/api.php'));
 
@@ -206,8 +207,6 @@ abstract class ModuleServiceProvider extends ServiceProvider
         $moduleName = $this->getModuleName();
 
         return module_path($moduleName, 'src/Database/Migrations');
-
-        return module_path($moduleName, 'src/Database/Migrations');
     }
 
     /**
@@ -216,8 +215,6 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getViewsPath(): string
     {
         $moduleName = $this->getModuleName();
-
-        return module_path($moduleName, 'src/Resources/views');
 
         return module_path($moduleName, 'src/Resources/views');
     }
@@ -230,8 +227,6 @@ abstract class ModuleServiceProvider extends ServiceProvider
         $moduleName = $this->getModuleName();
 
         return module_path($moduleName, 'src/Config/config.php');
-
-        return module_path($moduleName, 'src/Config/config.php');
     }
 
     /**
@@ -240,8 +235,6 @@ abstract class ModuleServiceProvider extends ServiceProvider
     protected function getAssetsPath(): string
     {
         $moduleName = $this->getModuleName();
-
-        return module_path($moduleName, 'src/Resources/assets');
 
         return module_path($moduleName, 'src/Resources/assets');
     }
@@ -253,9 +246,15 @@ abstract class ModuleServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Register module middleware aliases.
+     *
+     * ModuleMiddleware is abstract, so it cannot be aliased directly. Modules should
+     * alias their own concrete subclass, e.g. $router->aliasMiddleware('blog', BlogMiddleware::class).
+     */
     protected function registerMiddleware()
     {
-        $this->app['router']->aliasMiddleware('module', ModuleMiddleware::class);
+        //
     }
 
     protected function registerCommands(): void

@@ -4,6 +4,7 @@ namespace RCV\Core\Services;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ModuleBackupManager
@@ -55,11 +56,10 @@ class ModuleBackupManager
 
     public function restoreBackup(string $backupPath): bool
     {
-        try {
-            if (!File::exists($backupPath)) {
-                throw new \Exception("Backup directory not found: {$backupPath}");
-            }
+        // Invalid paths are a caller error: throw without logging.
+        $backupPath = $this->resolveBackupPath($backupPath);
 
+        try {
             $metadata = json_decode(File::get("{$backupPath}/backup_metadata.json"), true);
             $moduleName = $metadata['module'];
             $modulePath = module_path($moduleName);
@@ -110,11 +110,10 @@ class ModuleBackupManager
 
     public function deleteBackup(string $backupPath): bool
     {
-        try {
-            if (!File::exists($backupPath)) {
-                throw new \Exception("Backup directory not found: {$backupPath}");
-            }
+        // Invalid paths are a caller error: throw without logging.
+        $backupPath = $this->resolveBackupPath($backupPath);
 
+        try {
             File::deleteDirectory($backupPath);
             return true;
         } catch (\Exception $e) {
@@ -143,6 +142,27 @@ class ModuleBackupManager
                 $this->deleteBackup($backup['path']);
             }
         }
+    }
+
+    /**
+     * Resolve a backup path and ensure it is a directory inside the configured backup directory.
+     *
+     * @throws \Exception
+     */
+    protected function resolveBackupPath(string $backupPath): string
+    {
+        $root = realpath($this->backupPath);
+        $resolved = realpath($backupPath);
+
+        if ($resolved === false || ! is_dir($resolved)) {
+            throw new \Exception("Backup directory not found: {$backupPath}");
+        }
+
+        if ($root === false || ! str_starts_with($resolved, $root.DIRECTORY_SEPARATOR)) {
+            throw new \Exception("Backup path must be inside the backup directory: {$backupPath}");
+        }
+
+        return $resolved;
     }
 
     protected function getDirectorySize(string $path): int

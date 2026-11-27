@@ -60,7 +60,9 @@ class ComposerDependencyManager
 
     protected function log(string $message, string $level): void
     {
-        Log::{$level}($message);
+        if ($level !== 'info') {
+            Log::{$level}($message);
+        }
 
         if ($this->command !== null) {
             $this->command->line($message);
