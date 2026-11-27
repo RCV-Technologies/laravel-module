@@ -4,6 +4,7 @@ namespace RCV\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RCV\Core\Services\ModuleNameValidator;
@@ -20,12 +21,11 @@ class ModuleMakeMultipleCommand extends Command
         $names = array_map(fn ($name) => trim($name), $names);
         $normalizedNames = [];
         $success = true;
-        $configPath = base_path('vendor/rcv/core/src/Config/config.php');
-        $config = File::exists($configPath) ? require $configPath : [];
-        $configuredModules = $config['modules'] ?? [];
-        $registeredModules = is_array($configuredModules)
-            ? array_values(array_filter($configuredModules, 'is_string'))
-            : [];
+        try {
+            $registeredModules = DB::table('module_states')->pluck('name')->all();
+        } catch (\Throwable) {
+            $registeredModules = [];
+        }
 
         foreach ($names as $name) {
             if ($name === '') {

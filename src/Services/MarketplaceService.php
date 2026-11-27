@@ -22,6 +22,11 @@ use RCV\Core\Notifications\ModuleUpdateAvailable;
 
 class MarketplaceService
 {
+    /**
+     * Cache key for the discovered module list (stored without the RCV CacheManager prefix).
+     */
+    public const LIST_CACHE_KEY = 'modules.list';
+
     protected string $modulePath;
 
     protected string $backupPath;
@@ -60,7 +65,7 @@ class MarketplaceService
     public function list(): array
     {
         return $this->cacheEnabled && $this->cacheManager
-            ? $this->cacheManager->remember('modules.list', $this->cacheTtl, fn () => $this->discoverModules())
+            ? $this->cacheManager->remember(self::LIST_CACHE_KEY, $this->cacheTtl, fn () => $this->discoverModules())
             : $this->discoverModules();
     }
 
@@ -364,11 +369,20 @@ class MarketplaceService
         return ModuleState::where('name', $name)->where('status', 'installed')->exists();
     }
 
+    /**
+     * Forget the cached marketplace data for a module after its state changes outside this service.
+     */
+    public function clearCachedState(string $name): void
+    {
+        $this->clearModuleCache($name);
+    }
+
     protected function clearModuleCache(string $name): void
     {
         if ($this->cacheManager) {
             $this->cacheManager->forget($this->cacheKey($name));
-            $this->cacheManager->forget('modules.list');
+            $this->cacheManager->forget(self::LIST_CACHE_KEY);
+            $this->cacheManager->forget(ModuleDependencyGraph::CACHE_KEY);
         }
     }
 

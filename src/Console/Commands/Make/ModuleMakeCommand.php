@@ -3,6 +3,7 @@
 namespace RCV\Core\Console\Commands\Make;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RCV\Core\Services\ModuleNameValidator;
@@ -62,9 +63,8 @@ class ModuleMakeCommand extends Command
             $this->createModuleDirectories();
             $this->createModuleFiles();
             $this->createModuleState();
-            $this->registerModuleInCoreConfig();
 
-            $this->info("Module [{$this->moduleNameStudly}] created and registered successfully!");
+            $this->info("Module [{$this->moduleNameStudly}] created successfully!");
             $this->line("To enable this module, run: php artisan module:enable {$this->moduleNameStudly}");
         }
 
@@ -76,17 +76,11 @@ class ModuleMakeCommand extends Command
      */
     protected function getRegisteredModuleNames(): array
     {
-        $configPath = base_path('vendor/rcv/core/src/Config/config.php');
-        if (! File::exists($configPath)) {
+        try {
+            return DB::table('module_states')->pluck('name')->all();
+        } catch (\Throwable) {
             return [];
         }
-
-        $config = require $configPath;
-        $modules = $config['modules'] ?? [];
-
-        return is_array($modules)
-            ? array_values(array_filter($modules, 'is_string'))
-            : [];
     }
 
     protected function prepareModuleNames(string $name): void
@@ -174,25 +168,5 @@ class ModuleMakeCommand extends Command
         ];
 
         File::put("{$this->modulePath}/module.json", json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    protected function registerModuleInCoreConfig(): void
-    {
-        $configPath = base_path('vendor/rcv/core/src/Config/config.php');
-
-        if (! File::exists($configPath)) {
-            $this->error("Core config file not found: $configPath");
-
-            return;
-        }
-
-        $config = require $configPath;
-        $config['modules'] = $config['modules'] ?? [];
-
-        if (! in_array($this->moduleNameStudly, $config['modules'])) {
-            $config['modules'][] = $this->moduleNameStudly;
-        }
-
-        File::put($configPath, "<?php\n\nreturn ".var_export($config, true).";\n");
     }
 }

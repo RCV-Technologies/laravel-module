@@ -17,6 +17,11 @@ use RCV\Core\Services\MarketplaceService;
  */
 class ModuleDependencyGraph
 {
+    /**
+     * Cache key for the generated dependency graph.
+     */
+    public const CACHE_KEY = 'modules.dependency_graph.v1';
+
     protected string $modulePath;
     protected ?CacheManager $cacheManager;
     protected MarketplaceService $marketplaceService;
@@ -41,10 +46,8 @@ class ModuleDependencyGraph
      */
     public function generateGraph(): array
     {
-        $cacheKey = 'modules.dependency_graph.v1';
-
         if ($this->cacheManager && $this->cacheEnabled) {
-            return $this->cacheManager->remember($cacheKey, $this->cacheTtl, fn() => $this->buildGraph());
+            return $this->cacheManager->remember(self::CACHE_KEY, $this->cacheTtl, fn() => $this->buildGraph());
         }
 
         return $this->buildGraph();
@@ -142,6 +145,8 @@ class ModuleDependencyGraph
             $modules = [];
         }
 
+        $moduleManager = app(ModuleManager::class);
+
         foreach ($modules as $module) {
             $name = $module['name'] ?? ($module['module'] ?? null);
             if (!$name) {
@@ -150,7 +155,7 @@ class ModuleDependencyGraph
 
             $nodes[] = [
                 'name' => $name,
-                'enabled' => ($module['status'] ?? 'disabled') === 'enabled',
+                'enabled' => $moduleManager->isModuleEnabled($name),
                 'version' => $module['version'] ?? '1.0.0',
             ];
         }

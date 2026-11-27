@@ -8,7 +8,8 @@ class {{ class }} extends FormRequest
 {
     public function authorize()
     {
-        return true;
+        // Deny by default. Return true or check a policy/gate once access rules are defined.
+        return false;
     }
 
     public function rules()

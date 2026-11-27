@@ -4,6 +4,7 @@ namespace RCV\Core\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use RCV\Core\Models\ModuleState;
 
 class CacheManager
@@ -119,7 +120,17 @@ class CacheManager
             return;
         }
 
-        $states = ModuleState::all();
+        try {
+            $states = ModuleState::all();
+        } catch (\Throwable $exception) {
+            // module_states may not exist yet (fresh install or mid-migration); nothing to warm.
+            Log::debug('Skipping RCV Core cache warm-up; module_states is not readable.', [
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
         foreach ($states as $state) {
             $this->put(
                 $this->getModuleKey($state->name),

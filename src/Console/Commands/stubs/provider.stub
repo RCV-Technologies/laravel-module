@@ -5,6 +5,7 @@ namespace Modules\{{ module_name }}\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 
 class {{ module_name }}ServiceProvider extends ServiceProvider
 {
@@ -102,16 +103,22 @@ class {{ module_name }}ServiceProvider extends ServiceProvider
      */
     protected function registerRoutes(): void
     {
+        if ($this->app->routesAreCached()) {
+            return;
+        }
+
         try {
             $webRoutePath = __DIR__ . '/../Routes/web.php';
             $apiRoutePath = __DIR__ . '/../Routes/api.php';
 
+            // Web routes need the "web" group for sessions, CSRF protection and cookie encryption.
             if (file_exists($webRoutePath)) {
-                $this->loadRoutesFrom($webRoutePath);
+                Route::middleware('web')->group($webRoutePath);
             }
 
+            // API routes need the "api" group for its middleware such as rate limiting.
             if (file_exists($apiRoutePath)) {
-                $this->loadRoutesFrom($apiRoutePath);
+                Route::middleware('api')->group($apiRoutePath);
             }
         } catch (\Exception $e) {
             Log::error("Error in {$this->moduleName}ServiceProvider registerRoutes: " . $e->getMessage());

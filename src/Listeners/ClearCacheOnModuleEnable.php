@@ -4,6 +4,7 @@ namespace RCV\Core\Listeners;
 
 use RCV\Core\Events\ModuleEnabled;
 use RCV\Core\Services\CacheManager;
+use RCV\Core\Services\MarketplaceService;
 use RCV\Core\Services\ModuleManager;
 
 class ClearCacheOnModuleEnable
@@ -12,7 +13,6 @@ class ClearCacheOnModuleEnable
     {
         app(CacheManager::class)->invalidateModule($event->name);
         app(ModuleManager::class)->refreshEnabledModulesCache();
-
-        info("RCV Core cache entries invalidated after enabling module: {$event->name}");
+        app(MarketplaceService::class)->clearCachedState($event->name);
     }
 }

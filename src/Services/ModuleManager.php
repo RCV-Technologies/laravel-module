@@ -26,6 +26,13 @@ class ModuleManager
 
     protected ?array $availableModulesCache = null;
 
+    /**
+     * Enabled module names, remembered for the lifetime of this instance.
+     *
+     * @var array<int, string>|null
+     */
+    protected ?array $enabledModuleNames = null;
+
     public function __construct()
     {
         $this->modulePath = base_path('Modules');
@@ -34,7 +41,7 @@ class ModuleManager
 
     public function initialize(): void
     {
-        if (! File::isDirectory($this->modulePath)) {
+        if (app()->runningInConsole() && ! File::isDirectory($this->modulePath)) {
             File::makeDirectory($this->modulePath, 0755, true);
         }
 
@@ -117,28 +124,68 @@ class ModuleManager
      */
     protected function getEnabledModuleNames(): array
     {
+        return $this->enabledModuleNames ??= $this->loadEnabledModuleNames();
+    }
+
+    /**
+     * Load enabled module names from cache, falling back to the database.
+     *
+     * @return array<int, string>
+     */
+    protected function loadEnabledModuleNames(): array
+    {
+        $databaseFailed = false;
+        $queryEnabledModules = function () use (&$databaseFailed): array {
+            try {
+                return DB::table('module_states')->where('enabled', true)->pluck('name')->all();
+            } catch (\Throwable $exception) {
+                $databaseFailed = true;
+
+                throw $exception;
+            }
+        };
+
         if (app()->bound('cache')) {
             try {
-                $enabledModuleNames = Cache::rememberForever(
-                    $this->getEnabledModulesCacheKey(),
-                    fn (): array => DB::table('module_states')->where('enabled', true)->pluck('name')->all()
-                );
+                $enabledModuleNames = Cache::rememberForever($this->getEnabledModulesCacheKey(), $queryEnabledModules);
 
                 if (is_array($enabledModuleNames)) {
                     return array_values(array_filter($enabledModuleNames, 'is_string'));
                 }
             } catch (\Throwable $exception) {
-                Log::debug('Unable to load enabled modules from cache.', ['exception' => $exception]);
+                if ($databaseFailed) {
+                    // The cache was fine; the module_states query failed. Don't run it again.
+                    $this->logModuleStatesUnavailable($exception);
+
+                    return [];
+                }
+
+                Log::debug('Enabled module cache unavailable; reading module_states directly.', [
+                    'exception' => get_class($exception),
+                    'message' => $exception->getMessage(),
+                ]);
             }
         }
 
         try {
-            return DB::table('module_states')->where('enabled', true)->pluck('name')->all();
+            return $queryEnabledModules();
         } catch (\Throwable $exception) {
-            Log::debug('Unable to load enabled modules from the database.', ['exception' => $exception]);
+            $this->logModuleStatesUnavailable($exception);
 
             return [];
         }
+    }
+
+    /**
+     * Log a single short line (no stack trace) when module_states cannot be read,
+     * e.g. on a fresh install before migrations have run.
+     */
+    protected function logModuleStatesUnavailable(\Throwable $exception): void
+    {
+        Log::debug('module_states is not readable; treating all modules as disabled.', [
+            'exception' => get_class($exception),
+            'message' => $exception->getMessage(),
+        ]);
     }
 
     /**
@@ -289,18 +336,25 @@ class ModuleManager
             $this->availableModulesCache = null;
             $this->moduleManifests = [];
             $enabledModuleNames = DB::table('module_states')->where('enabled', true)->pluck('name')->all();
+            $this->enabledModuleNames = $enabledModuleNames;
 
             if (app()->bound('cache')) {
                 try {
                     Cache::forever($this->getEnabledModulesCacheKey(), $enabledModuleNames);
                 } catch (\Throwable $exception) {
-                    Log::debug('Unable to write enabled modules to cache.', ['exception' => $exception]);
+                    Log::debug('Unable to write enabled modules to cache.', [
+                        'exception' => get_class($exception),
+                        'message' => $exception->getMessage(),
+                    ]);
                 }
             }
 
             $this->loadModuleStates($enabledModuleNames);
         } catch (\Throwable $exception) {
-            Log::warning('Unable to refresh enabled module cache.', ['exception' => $exception]);
+            Log::warning('Unable to refresh enabled module cache.', [
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]);
         }
     }
 
